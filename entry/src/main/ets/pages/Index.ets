@@ -3,6 +3,7 @@
  * 标题区（1A2B 主视觉）→ 战绩卡 → 难度选择 → 开始按钮 → 玩法规则（半模态）
  */
 import { GamePage } from '../views/GamePage';
+import { TutorialPage } from '../views/TutorialPage';
 import { Stats, StatsStore } from '../model/StatsStore';
 import { DIFFICULTIES, Difficulty } from '../model/GameEngine';
 import { Theme } from '../common/Theme';
@@ -18,12 +19,28 @@ struct Index {
 
   aboutToAppear(): void {
     this.loadStats();
+    this.checkFirstLaunch();
   }
 
   loadStats(): void {
     const ctx = this.getUIContext().getHostContext() as common.Context;
     StatsStore.load(ctx).then((s: Stats) => {
       this.stats = s;
+    });
+  }
+
+  /** 首次启动自动进入新手引导 */
+  checkFirstLaunch(): void {
+    const ctx = this.getUIContext().getHostContext() as common.Context;
+    StatsStore.isTutorialDone(ctx).then((done: boolean) => {
+      if (!done) {
+        // 稍作延迟，确保 Navigation 已就绪
+        setTimeout(() => {
+          this.pathStack.pushPathByName('tutorial', '', () => {
+            this.loadStats();
+          });
+        }, 150);
+      }
     });
   }
 
@@ -38,6 +55,8 @@ struct Index {
   PagesMap(name: string) {
     if (name === 'game') {
       GamePage()
+    } else if (name === 'tutorial') {
+      TutorialPage()
     }
   }
 
@@ -230,20 +249,33 @@ struct Index {
             });
           })
 
-        Text('玩法规则')
-          .fontSize(14)
-          .fontColor(Theme.TEXT_SUB)
-          .padding(12)
-          .margin({ top: 6, bottom: 10 })
-          .onClick(() => {
-            this.showRules = true;
-          })
-          .bindSheet($$this.showRules, this.RulesSheet(), {
-            height: SheetSize.FIT_CONTENT,
-            backgroundColor: '#1D1838',
-            showClose: true,
-            dragBar: true
-          })
+        Row({ space: 4 }) {
+          Text('玩法规则')
+            .fontSize(14)
+            .fontColor(Theme.TEXT_SUB)
+            .padding(12)
+            .onClick(() => {
+              this.showRules = true;
+            })
+            .bindSheet($$this.showRules, this.RulesSheet(), {
+              height: SheetSize.FIT_CONTENT,
+              backgroundColor: '#1D1838',
+              showClose: true,
+              dragBar: true
+            })
+          Text('·')
+            .fontSize(14)
+            .fontColor(Theme.TEXT_FAINT)
+          Text('新手教学')
+            .fontSize(14)
+            .fontColor(Theme.GOLD)
+            .opacity(0.85)
+            .padding(12)
+            .onClick(() => {
+              this.pathStack.pushPathByName('tutorial', '');
+            })
+        }
+        .margin({ top: 6, bottom: 10 })
       }
       .width('100%')
       .height('100%')
