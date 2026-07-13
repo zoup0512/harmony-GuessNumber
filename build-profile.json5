@@ -1,0 +1,56 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\vyron\\.ohos\\config\\default_GuessNumber_9g19PKYXBZREFVUgbqeSE_7XzxMzl2JGcRs3R8CHiz4=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B99D307CB76C27049EDFBCDCE09CC391967417E49B3A75A5657D40E986E10CCBA89A2D7A4190657",
+          "profile": "C:\\Users\\vyron\\.ohos\\config\\default_GuessNumber_9g19PKYXBZREFVUgbqeSE_7XzxMzl2JGcRs3R8CHiz4=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\vyron\\.ohos\\config\\default_GuessNumber_9g19PKYXBZREFVUgbqeSE_7XzxMzl2JGcRs3R8CHiz4=.p12",
+          "storePassword": "0000001BEA94DE99C5984ACB43638829581FFF32DB5FB0C232560D27555FD6F94D87B4BE16FFD1AD8F1E49"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "6.0.2(22)",
+        "targetSdkVersion": "6.0.2(22)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

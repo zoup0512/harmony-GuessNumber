@@ -1,0 +1,13 @@
+{
+  "modelVersion": "6.0.2",
+  "name": "guess_number",
+  "version": "1.0.0",
+  "description": "Guess Number (1A2B) puzzle game for HarmonyOS",
+  "main": "",
+  "author": "razor",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.21"
+  }
+}
