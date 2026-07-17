@@ -20,12 +20,13 @@ interface StrategyCard {
   code: string;
   result: string;
   tip: string;
+  color: string;
 }
 
 const STRATEGIES: StrategyCard[] = [
-  { code: '125', result: '0A0B', tip: '一个都没中？恭喜！1、2、5 全部排除，信息量最大。' },
-  { code: '367', result: '2B', tip: '有 B 没 A：数字猜对了，但都放错了位置，换换顺序试试。' },
-  { code: '736', result: '2A1B', tip: 'A 变多了，说明调整方向是对的，保留对的位置继续微调。' }
+  { code: '125', result: '没奖牌', tip: '一个都没中？恭喜！1、2、5 全部排除，信息量最大。', color: Theme.RED },
+  { code: '367', result: '🥈×2', tip: '只有银牌：数字猜对了，但都放错了位置，换换顺序试试。', color: Theme.SILVER },
+  { code: '736', result: '🥇×2 🥈×1', tip: '金牌变多，说明调整方向对了，保住对的位置继续微调。', color: Theme.GOLD }
 ];
 
 @Component
@@ -37,7 +38,7 @@ export struct TutorialPage {
   @State pCurrent: string = '';
   @State pRecords: GuessRecord[] = [];
   @State pWon: boolean = false;
-  @State coach: string = '试着输入 3 个不同的数字，点「破解」提交';
+  @State coach: string = '试着输入 3 个不同的数字，输满后会自动破解';
   private engine: GameEngine = new GameEngine();
   private keyRows: string[][] = [
     ['1', '2', '3'],
@@ -110,10 +111,18 @@ export struct TutorialPage {
     }
     if (this.pCurrent.length < 3 && this.pCurrent.indexOf(key) < 0) {
       this.pCurrent += key;
+      // 与正式对局一致：输满位数自动破解
+      if (this.pCurrent.length === 3) {
+        setTimeout(() => {
+          if (!this.pWon && this.pCurrent.length === 3) {
+            this.onPracticeKey(KEY_SUBMIT);
+          }
+        }, 280);
+      }
     }
   }
 
-  /** 教练：把这次的 xAyB 翻译成人话 */
+  /** 教练：把这次的奖牌成绩翻译成人话 */
   updateCoach(rec: GuessRecord): void {
     if (rec.a === 3) {
       this.pWon = true;
@@ -121,10 +130,10 @@ export struct TutorialPage {
       return;
     }
     if (rec.a === 0 && rec.b === 0) {
-      this.coach = '0A0B：' + rec.guess.split('').join('、') + ' 都不在密码里，把它们全部排除！';
+      this.coach = '没拿到奖牌：' + rec.guess.split('').join('、') + ' 都不在密码里，把它们全部排除！';
       return;
     }
-    let text = rec.a.toString() + 'A' + rec.b.toString() + 'B：';
+    let text = '🥇×' + rec.a.toString() + ' 🥈×' + rec.b.toString() + '：';
     if (rec.a > 0) {
       text += '有 ' + rec.a.toString() + ' 个数字位置完全正确';
     }
@@ -202,11 +211,11 @@ export struct TutorialPage {
 
   @Builder
   DemoLabel(i: number) {
-    Text(this.demoMark(i) === 'A' ? 'A' : (this.demoMark(i) === 'B' ? 'B' : '✕'))
-      .fontSize(14)
+    Text(this.demoMark(i) === 'A' ? '🥇' : (this.demoMark(i) === 'B' ? '🥈' : '✕'))
+      .fontSize(this.demoMark(i) === 'X' ? 14 : 16)
       .fontWeight(FontWeight.Bold)
-      .fontColor(this.demoMark(i) === 'A' ? Theme.GREEN
-        : (this.demoMark(i) === 'B' ? Theme.BLUE : Theme.TEXT_FAINT))
+      .fontColor(this.demoMark(i) === 'A' ? Theme.GOLD
+        : (this.demoMark(i) === 'B' ? Theme.SILVER : Theme.TEXT_FAINT))
       .opacity((this.demoMark(i) === 'A' && this.revealStage >= 1) ||
         (this.demoMark(i) !== 'A' && this.revealStage >= 2) ? 1 : 0)
       .animation({ duration: 240, curve: Curve.EaseOut })
@@ -215,7 +224,7 @@ export struct TutorialPage {
   @Builder
   Step1Feedback() {
     Column({ space: 16 }) {
-      Text('第 2 步 · 读懂线索（最关键！）')
+      Text('第 2 步 · 看懂奖牌（最关键！）')
         .fontSize(13)
         .fontColor(Theme.GOLD)
         .letterSpacing(2)
@@ -264,24 +273,24 @@ export struct TutorialPage {
             .textAlign(TextAlign.Center)
         }
         if (this.revealStage >= 1) {
-          Text('🟢 「5」数字对、位置也对 → 记 1 个 A')
+          Text('🥇 「5」数字对、位置也对 → 得 1 枚金牌')
             .fontSize(14)
-            .fontColor(Theme.GREEN)
+            .fontColor(Theme.GOLD)
         }
         if (this.revealStage >= 2) {
-          Text('🔵 「3」「4」数字对、位置错 → 记 2 个 B')
+          Text('🥈 「3」「4」数字对、位置错 → 得 2 枚银牌')
             .fontSize(14)
-            .fontColor(Theme.BLUE)
+            .fontColor(Theme.SILVER)
           Text('✕ 「6」不在密码里')
             .fontSize(14)
             .fontColor(Theme.TEXT_FAINT)
         }
         if (this.revealStage >= 3) {
           Row({ space: 8 }) {
-            Text('所以线索是')
+            Text('所以这次的成绩是')
               .fontSize(14)
               .fontColor(Theme.TEXT)
-            Text('1A 2B')
+            Text('🥇×1 🥈×2')
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
               .fontColor(Theme.GOLD)
@@ -318,8 +327,7 @@ export struct TutorialPage {
             Text(s.result)
               .fontSize(13)
               .fontWeight(FontWeight.Bold)
-              .fontColor(s.result === '0A0B' ? Theme.RED
-                : (s.result.indexOf('A') >= 0 && s.result.charAt(0) !== '0' ? Theme.GREEN : Theme.BLUE))
+              .fontColor(s.color)
           }
           .width(64)
           Text(s.tip)
@@ -401,14 +409,14 @@ export struct TutorialPage {
               .fontWeight(FontWeight.Bold)
               .fontColor(Theme.TEXT)
             Blank()
-            Text(rec.a.toString() + 'A')
+            Text('🥇×' + rec.a.toString())
               .fontSize(13)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.GREEN)
-            Text(rec.b.toString() + 'B')
+              .fontColor(Theme.GOLD)
+            Text('🥈×' + rec.b.toString())
               .fontSize(13)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.BLUE)
+              .fontColor(Theme.SILVER)
           }
           .width('100%')
           .padding({ left: 10, right: 10, top: 6, bottom: 6 })

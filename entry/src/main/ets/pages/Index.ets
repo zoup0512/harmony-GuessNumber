@@ -63,11 +63,11 @@ struct Index {
   @Builder
   HeroTiles() {
     Row({ space: 8 }) {
-      ForEach(['1', 'A', '2', 'B'], (ch: string, idx: number) => {
+      ForEach(['2', '🥇', '1', '🥈'], (ch: string, idx: number) => {
         Text(ch)
           .fontSize(26)
           .fontWeight(FontWeight.Bold)
-          .fontColor(idx === 1 ? Theme.GREEN : (idx === 3 ? Theme.BLUE : Theme.TEXT))
+          .fontColor(idx === 0 ? Theme.GOLD : (idx === 2 ? Theme.SILVER : Theme.TEXT))
           .width(48)
           .height(58)
           .textAlign(TextAlign.Center)
@@ -156,10 +156,11 @@ struct Index {
         .fontColor(Theme.TEXT)
       Column({ space: 10 }) {
         this.RuleLine('🎯', '系统随机生成一组各位互不相同的数字（首位可以为 0），你要在限定次数内破解它。')
-        this.RuleLine('🟢', 'A：数字对且位置对的个数。例如答案 5234，猜 5346 → 数字 5 位置正确，记 1A。')
-        this.RuleLine('🔵', 'B：数字猜对但位置不对的个数。上例中 3 和 4 数字对但位置错，记 2B，结果即 1A2B。')
-        this.RuleLine('⌨️', '键盘会自动禁用已输入的数字，杜绝重复；凑满位数后点「破解」提交。')
+        this.RuleLine('🥇', '金牌：数字对、位置也对。例如答案 5234，猜 5346 → 数字 5 位置正确，得 1 枚金牌。')
+        this.RuleLine('🥈', '银牌：数字对但位置不对。上例中 3 和 4 数字对但放错了位置，得 2 枚银牌，结果就是 🥇×1 🥈×2。')
+        this.RuleLine('⌨️', '键盘会自动禁用已输入的数字，杜绝重复；数字输满后自动提交破解，无需手动确认。')
         this.RuleLine('💡', '每局可用一次提示，随机揭示一位密码，但会消耗 1 次机会，慎用。')
+        this.RuleLine('🤖', 'AI 军师每局可召唤 2 次（每次消耗 1 次机会）：它只根据你已有的线索推理，告诉你剩余可能、数字判定，并推荐信息量最大的下一猜。')
         this.RuleLine('🏆', '猜中即胜利；用完机会则失败并公布答案。次数越少、用时越短，战绩越好。')
       }
       .alignItems(HorizontalAlign.Start)
@@ -207,7 +208,7 @@ struct Index {
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
           .margin({ top: 20 })
-        Text('经典 1A2B · 用逻辑破解密码')
+        Text('经典猜数字 · 猜对拿金牌 🥇')
           .fontSize(14)
           .fontColor(Theme.TEXT_SUB)
           .margin({ top: 6 })
