@@ -542,20 +542,28 @@ export struct GamePage {
   Keypad() {
     Column({ space: 10 }) {
       // 提示 & AI 军师
-      Row() {
+      Row({ space: 10 }) {
         // AI 军师
-        Row({ space: 4 }) {
-          Text('🤖')
-            .fontSize(13)
+        Column({ space: 2 }) {
           Text(this.aiUsesLeft > 0
-            ? 'AI 军师 ×' + this.aiUsesLeft.toString() + '（耗 1 次机会）'
-            : 'AI 军师已下班')
+            ? '🤖 AI 军师 ×' + this.aiUsesLeft.toString()
+            : '🤖 AI 军师已下班')
             .fontSize(13)
             .fontColor(this.aiUsesLeft > 0 ? '#7EE1FF' : Theme.TEXT_FAINT)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+          Text(this.aiUsesLeft > 0 ? '耗 1 次机会' : '本局次数已用完')
+            .fontSize(11)
+            .fontColor(Theme.TEXT_SUB)
+            .width('100%')
+            .textAlign(TextAlign.Center)
         }
+        .layoutWeight(1)
+        .constraintSize({ minHeight: 48 })
+        .justifyContent(FlexAlign.Center)
         .padding({ left: 12, right: 12, top: 6, bottom: 6 })
         .backgroundColor(this.aiUsesLeft > 0 ? 'rgba(126,225,255,0.10)' : 'rgba(255,255,255,0.04)')
-        .borderRadius(999)
+        .borderRadius(Theme.R_KEY)
         .borderWidth(1)
         .borderColor(this.aiUsesLeft > 0 ? 'rgba(126,225,255,0.35)' : 'rgba(255,255,255,0.08)')
         .onClick(() => this.requestAi())
@@ -566,22 +574,29 @@ export struct GamePage {
           dragBar: true
         })
 
-        Blank()
-
         // 揭示一位提示
-        Row({ space: 4 }) {
-          Text('💡')
-            .fontSize(13)
-          Text(this.hintUsed ? '提示已用' : '提示（耗 1 次机会）')
+        Column({ space: 2 }) {
+          Text(this.hintUsed ? '💡 提示已用' : '💡 提示')
             .fontSize(13)
             .fontColor(this.hintUsed ? Theme.TEXT_FAINT : Theme.GOLD)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+          Text(this.hintUsed ? '每局限 1 次' : '耗 1 次机会')
+            .fontSize(11)
+            .fontColor(Theme.TEXT_SUB)
+            .width('100%')
+            .textAlign(TextAlign.Center)
         }
+        .layoutWeight(1)
+        .constraintSize({ minHeight: 48 })
+        .justifyContent(FlexAlign.Center)
         .padding({ left: 12, right: 12, top: 6, bottom: 6 })
         .backgroundColor(this.hintUsed ? 'rgba(255,255,255,0.04)' : 'rgba(245,180,65,0.12)')
-        .borderRadius(999)
+        .borderRadius(Theme.R_KEY)
         .onClick(() => this.requestHint())
       }
       .width('100%')
+      .alignItems(VerticalAlign.Top)
 
       ForEach(this.keyRows, (row: string[], rIdx: number) => {
         Row({ space: 10 }) {

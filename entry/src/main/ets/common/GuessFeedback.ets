@@ -11,13 +11,13 @@ export struct FeedbackIcon {
         .commands('M6 3 H18 Q21 3 21 6 V18 Q21 21 18 21 H6 Q3 21 3 18 V6 Q3 3 6 3 Z')
         .fill(Color.Transparent)
         .stroke(this.exact ? Theme.POSITION_EXACT : Theme.POSITION_MISPLACED)
-        .strokeWidth(1.8)
+        .strokeWidth('1.8px')
       if (this.exact) {
         Path()
           .commands('M7.5 12 L10.5 15 L16.5 9')
           .fill(Color.Transparent)
           .stroke(Theme.POSITION_EXACT)
-          .strokeWidth(1.8)
+          .strokeWidth('1.8px')
           .strokeLineCap(LineCapStyle.Round)
           .strokeLineJoin(LineJoinStyle.Round)
       } else {
@@ -25,12 +25,13 @@ export struct FeedbackIcon {
           .commands('M7 9 H17 M14.5 6.5 L17 9 L14.5 11.5 M17 15 H7 M9.5 12.5 L7 15 L9.5 17.5')
           .fill(Color.Transparent)
           .stroke(Theme.POSITION_MISPLACED)
-          .strokeWidth(1.8)
+          .strokeWidth('1.8px')
           .strokeLineCap(LineCapStyle.Round)
           .strokeLineJoin(LineJoinStyle.Round)
       }
     }
-    .viewPort({ x: 0, y: 0, width: 24, height: 24 })
+    // Path 命令使用 px，视口与描边必须使用相同单位。
+    .viewPort({ x: '0px', y: '0px', width: '24px', height: '24px' })
     .width(this.iconSize)
     .height(this.iconSize)
     .accessibilityLevel('no')
