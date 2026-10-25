@@ -9,6 +9,7 @@ import { GameEngine, GuessRecord } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
 import { FeedbackBadge } from '../common/GuessFeedback';
+import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
 import { common } from '@kit.AbilityKit';
 
 const DEMO_ANSWER: string = '5234';
@@ -398,15 +399,16 @@ export struct TutorialPage {
           Row({ space: 8 }) {
             ForEach(row, (key: string) => {
               if (key === KEY_DELETE) {
-                Text('⌫')
-                  .fontSize(18)
-                  .fontColor(this.pCurrent.length > 0 ? Theme.RED : Theme.TEXT_FAINT)
-                  .textAlign(TextAlign.Center)
-                  .height(42)
-                  .layoutWeight(1)
-                  .backgroundColor(Theme.CARD)
-                  .borderRadius(12)
-                  .onClick(() => this.onPracticeKey(key))
+                Row() {
+                  DeleteKeyIcon({ iconSize: 20, color: this.pCurrent.length > 0 ? Theme.RED : Theme.TEXT_FAINT })
+                }
+                .justifyContent(FlexAlign.Center)
+                .height(42)
+                .layoutWeight(1)
+                .backgroundColor(Theme.CARD)
+                .borderRadius(12)
+                .accessibilityText('删除')
+                .onClick(() => this.onPracticeKey(key))
               } else if (key === KEY_SUBMIT) {
                 Text('✓ 破解')
                   .fontSize(14)

@@ -9,6 +9,7 @@ import { GameEngine, GuessRecord, DIFFICULTIES, Difficulty, AiAdvice } from '../
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
 import { FeedbackBadge, FeedbackIcon } from '../common/GuessFeedback';
+import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
 import { common } from '@kit.AbilityKit';
 
 const KEY_DELETE: string = 'DEL';
@@ -257,19 +258,31 @@ export struct GamePage {
   @Builder
   Header() {
     Row() {
-      // 返回
-      Text('‹')
-        .fontSize(34)
-        .fontColor(Theme.TEXT)
-        .width(44)
-        .height(44)
-        .textAlign(TextAlign.Center)
-        .backgroundColor(Theme.CARD)
-        .borderRadius(999)
-        .onClick(() => {
-          this.stopTimer();
-          this.pathStack.pop();
-        })
+      // 返回：‹ 字形在行框内偏下，改用自绘箭头保证居中
+      Row() {
+        Shape() {
+          Path()
+            .commands('M15.5 5.5 L9 12 L15.5 18.5')
+            .fill(Color.Transparent)
+            .stroke(Theme.TEXT)
+            .strokeWidth('2.4px')
+            .strokeLineCap(LineCapStyle.Round)
+            .strokeLineJoin(LineJoinStyle.Round)
+        }
+        .viewPort({ x: '0px', y: '0px', width: '24px', height: '24px' })
+        .width(24)
+        .height(24)
+      }
+      .justifyContent(FlexAlign.Center)
+      .width(44)
+      .height(44)
+      .backgroundColor(Theme.CARD)
+      .borderRadius(999)
+      .accessibilityText('返回')
+      .onClick(() => {
+        this.stopTimer();
+        this.pathStack.pop();
+      })
 
       Blank()
 
@@ -630,15 +643,16 @@ export struct GamePage {
   @Builder
   KeyButton(key: string) {
     if (key === KEY_DELETE) {
-      Text('⌫')
-        .fontSize(22)
-        .fontColor(this.current.length > 0 ? Theme.RED : Theme.TEXT_FAINT)
-        .textAlign(TextAlign.Center)
-        .height(52)
-        .layoutWeight(1)
-        .backgroundColor(Theme.CARD)
-        .borderRadius(Theme.R_KEY)
-        .onClick(() => this.onKey(key))
+      Row() {
+        DeleteKeyIcon({ iconSize: 24, color: this.current.length > 0 ? Theme.RED : Theme.TEXT_FAINT })
+      }
+      .justifyContent(FlexAlign.Center)
+      .height(52)
+      .layoutWeight(1)
+      .backgroundColor(Theme.CARD)
+      .borderRadius(Theme.R_KEY)
+      .accessibilityText('删除')
+      .onClick(() => this.onKey(key))
     } else if (key === KEY_SUBMIT) {
       Text('✓ 破解')
         .fontSize(17)
