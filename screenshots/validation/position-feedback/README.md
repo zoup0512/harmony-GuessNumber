@@ -58,3 +58,52 @@
 运行包 `entry/build/default/outputs/default/entry-default-unsigned.hap` SHA-256：
 
 `d49958ee05e8d5f32ed16e734766a28febd8d62a8651be64c67a24eb628ac143`
+
+## 后续布局复测（2026-10-25）
+
+正式对局中“正位”徽标左边缘与历史记录首位数字左边缘对齐；正式键盘与教学练习键盘统一改为三行、每行四键：`1 2 3 4`／`5 6 7 8`／`9 0 ⌫ ✓ 破解`。在同一台 Pura90 模拟器覆盖安装新版未签名包后实测：
+
+- 四位局输入 `1234` 自动提交，UI 树中首位数字左边缘与“正位”徽标左边缘**同为 x=210px**；四列按键位于三个不同的 y 坐标行。[空态](new-four-column-empty.png)／[提交后](new-four-column-feedback.png)。
+- 三位与五位难度都正常提交，并保持“正位”徽标 x=210px：[三位](new-3-digits.png)／[五位](new-5-digits.png)。三位测试随机答案刚好是 `123`，因此同时验证了猜中后的结果页；随后从结果页返回继续测试。
+- 教学练习页四列按键完整显示，输入第三个数字后自动提交并出现汇总反馈：[练习空态](new-practice-empty.png)／[练习反馈](new-practice-feedback.png)。
+- `CompileArkTS`、`PackageHap`、`PackingCheck` 再次通过；`SignHap` 仍被原有无效 `storeFile` 配置阻塞，模拟器成功覆盖安装未签名包。未在物理真机验证此次布局更新。
+
+新版测试包 SHA-256：
+
+`0e77e10c21a778e1720a350e9afbe4b99f303de1ec61045b2fd45f453982bd74`
+
+## 三种位数的两端对齐复测（2026-10-26）
+
+正式对局历史记录的反馈行以猜测位数计算宽度：3位瓷砖58vp、4位42vp、5位34vp，相邻间距6vp；“正位”靠左，“错位”靠右。由于3位原先34vp瓷砖合计只有114vp，小于两枚徽标宽度，3位必须增大瓷砖才可能让两端同时对齐。
+
+在相同的HarmonyOS Pura90模拟器上覆盖安装后，分别输入并自动提交：
+
+| 位数 | 首数字左缘 | 正位左缘 | 末数字右缘 | 错位右缘 | 截图 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 3 | 210px | 210px | 861px | 861px | [三位](aligned-3-digits.png) |
+| 4 | 210px | 210px | 861px | 861px | [四位](aligned-4-digits.png) |
+| 5 | 210px | 210px | 889px | 889px | [五位](aligned-5-digits.png) |
+
+三种模式的图标、数字和两枚徽标均在历史卡片内完整显示，没有重叠。`CompileArkTS`、`PackageHap`、`PackingCheck` 通过；完整签名构建仍受项目现有无效 `storeFile` 阻塞。模拟器覆盖安装未签名包实测通过，未在物理真机上验证此次版式。
+
+本轮模拟器包 SHA-256：
+
+`7d19bb8d132c0acbdac6592ee062b9f93ccb46c7aa2a5ad411130d498e2458fa`
+
+## 新手引导同步复测（2026-10-26）
+
+新手引导也将猜测数字显示成瓷砖，并用两端对齐的反馈行：四位演示使用42vp瓷砖（总宽186vp），三位策略卡与练习记录使用58vp瓷砖（总宽186vp）。首页规则等其他场景的共享反馈组件未更改。在同一台 Pura90 模拟器覆盖安装新版包后，逐项通过 UI 树边界检查并截图确认：
+
+| 场景 | 首数字/正位左缘 | 末数字/错位右缘 | 截图 |
+| --- | ---: | ---: | --- |
+| 教学演示 5346 | 98 / 98px | 749 / 749px | [演示](tutorial-aligned-demo.png) |
+| 策略卡 125 | 129 / 129px | 780 / 780px | [三张策略卡](tutorial-aligned-strategy-scrolled.png) |
+| 策略卡 367 | 129 / 129px | 780 / 780px | [三张策略卡](tutorial-aligned-strategy-scrolled.png) |
+| 策略卡 768 | 129 / 129px | 780 / 780px | [三张策略卡](tutorial-aligned-strategy-scrolled.png) |
+| 三位练习记录 123 | 196 / 196px | 847 / 847px | [练习](tutorial-aligned-practice.png) |
+
+教学三阶段推进及练习输入三个数字后自动提交正常。截图复核图标和文字均完整、两种徽标无重叠。`CompileArkTS`、`PackageHap`、`PackingCheck` 通过；`SignHap` 仍被项目原有无效 `storeFile` 阻塞，开发模拟器可安装未签名 HAP。未在物理真机验证此轮版式。
+
+本轮模拟器包 SHA-256：
+
+`63a0aab518146ddd76f964ec107eb083e94394494921ad968d4ce96c1df9dbba`

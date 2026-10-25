@@ -8,7 +8,7 @@
 import { GameEngine, GuessRecord, DIFFICULTIES, Difficulty, AiAdvice } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
-import { GuessFeedback, FeedbackIcon } from '../common/GuessFeedback';
+import { FeedbackBadge, FeedbackIcon } from '../common/GuessFeedback';
 import { common } from '@kit.AbilityKit';
 
 const KEY_DELETE: string = 'DEL';
@@ -35,10 +35,9 @@ export struct GamePage {
   @State ai: AiAdvice = new AiAdvice();
   private timerId: number = -1;
   private keyRows: string[][] = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    [KEY_DELETE, '0', KEY_SUBMIT]
+    ['1', '2', '3', '4'],
+    ['5', '6', '7', '8'],
+    ['9', '0', KEY_DELETE, KEY_SUBMIT]
   ];
 
   aboutToDisappear(): void {
@@ -247,6 +246,14 @@ export struct GamePage {
     }
   }
 
+  historyTileSize(guess: string): number {
+    return guess.length === 3 ? 58 : (guess.length === 4 ? 42 : 34);
+  }
+
+  historyGuessWidth(guess: string): number {
+    return this.historyTileSize(guess) * guess.length + 6 * (guess.length - 1);
+  }
+
   @Builder
   Header() {
     Row() {
@@ -397,10 +404,16 @@ export struct GamePage {
                   .fontSize(12)
                   .fontColor(Theme.TEXT_FAINT)
                   .width(30)
-                this.GuessTiles(rec.guess, 34, 18)
+                this.GuessTiles(rec.guess, this.historyTileSize(rec.guess), 18)
               }
               .width('100%')
-              GuessFeedback({ exact: rec.a, misplaced: rec.b })
+              Row() {
+                FeedbackBadge({ count: rec.a, exact: true })
+                Blank()
+                FeedbackBadge({ count: rec.b, exact: false })
+              }
+              .width(this.historyGuessWidth(rec.guess))
+              .margin({ left: 30 })
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)

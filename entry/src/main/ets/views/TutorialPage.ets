@@ -8,7 +8,7 @@
 import { GameEngine, GuessRecord } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
-import { GuessFeedback } from '../common/GuessFeedback';
+import { FeedbackBadge } from '../common/GuessFeedback';
 import { common } from '@kit.AbilityKit';
 
 const DEMO_ANSWER: string = '5234';
@@ -42,10 +42,9 @@ export struct TutorialPage {
   @State coach: string = '试着输入 3 个不同的数字，输满后会自动破解';
   private engine: GameEngine = new GameEngine();
   private keyRows: string[][] = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    [KEY_DELETE, '0', KEY_SUBMIT]
+    ['1', '2', '3', '4'],
+    ['5', '6', '7', '8'],
+    ['9', '0', KEY_DELETE, KEY_SUBMIT]
   ];
 
   aboutToAppear(): void {
@@ -142,6 +141,35 @@ export struct TutorialPage {
   }
 
   @Builder
+  FeedbackTiles(guess: string, tileSize: number) {
+    Row({ space: 6 }) {
+      ForEach(guess.split(''), (ch: string, idx: number) => {
+        Text(ch)
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Theme.TEXT)
+          .width(tileSize)
+          .height(tileSize)
+          .textAlign(TextAlign.Center)
+          .backgroundColor('rgba(255,255,255,0.08)')
+          .borderRadius(Theme.R_TILE - 4)
+      }, (ch: string, idx: number) => idx.toString() + '_' + ch)
+    }
+  }
+
+  @Builder
+  FeedbackRow(exact: number, misplaced: number, width: number, leftInset: number) {
+    Row() {
+      FeedbackBadge({ count: exact, exact: true })
+      Blank()
+      FeedbackBadge({ count: misplaced, exact: false })
+    }
+    .width(width)
+    .alignSelf(ItemAlign.Start)
+    .margin({ left: leftInset })
+  }
+
+  @Builder
   StepDots() {
     Row({ space: 6 }) {
       ForEach([0, 1, 2, 3], (i: number) => {
@@ -206,11 +234,12 @@ export struct TutorialPage {
         .fontSize(12)
         .fontColor(Theme.TEXT_FAINT)
 
-      Row({ space: 8 }) {
-        ForEach(DEMO_GUESS.split(''), (ch: string, idx: number) => {
-          this.Tile(ch, 48, 24, Theme.TEXT, Theme.STROKE, 1)
-        }, (ch: string, idx: number) => 'g' + idx.toString())
+      Column() {
+        this.FeedbackTiles(DEMO_GUESS, 42)
       }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: 6 })
 
       // 讲解文案随阶段变化
       Column({ space: 8 }) {
@@ -240,7 +269,7 @@ export struct TutorialPage {
             Text('所以这次的汇总反馈是')
               .fontSize(14)
               .fontColor(Theme.TEXT)
-            GuessFeedback({ exact: 1, misplaced: 2 })
+            this.FeedbackRow(1, 2, 186, 6)
             Text('实际对局只给数量，不标出具体数字；两类不重复计数。')
               .fontSize(13)
               .fontColor(Theme.TEXT_SUB)
@@ -268,11 +297,11 @@ export struct TutorialPage {
         .fontColor(Theme.TEXT_SUB)
       ForEach(STRATEGIES, (s: StrategyCard, idx: number) => {
         Column({ space: 10 }) {
-          Text('示例猜测：' + s.code)
-            .fontSize(17)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.TEXT)
-          GuessFeedback({ exact: s.exact, misplaced: s.misplaced })
+          Text('示例猜测')
+            .fontSize(13)
+            .fontColor(Theme.TEXT_SUB)
+          this.FeedbackTiles(s.code, 58)
+          this.FeedbackRow(s.exact, s.misplaced, 186, 0)
           Text(s.tip)
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
@@ -343,18 +372,15 @@ export struct TutorialPage {
         Column({ space: 6 }) {
           ForEach(this.pRecords.slice(0, 3), (rec: GuessRecord) => {
             Column({ space: 8 }) {
-              Row({ space: 10 }) {
+              Row() {
                 Text('#' + rec.index.toString())
                   .fontSize(11)
                   .fontColor(Theme.TEXT_FAINT)
                   .width(24)
-                Text(rec.guess.split('').join(' '))
-                  .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(Theme.TEXT)
+                this.FeedbackTiles(rec.guess, 58)
               }
               .width('100%')
-              GuessFeedback({ exact: rec.a, misplaced: rec.b })
+              this.FeedbackRow(rec.a, rec.b, 186, 24)
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
