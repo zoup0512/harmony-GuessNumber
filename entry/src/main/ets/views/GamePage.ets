@@ -8,6 +8,7 @@
 import { GameEngine, GuessRecord, DIFFICULTIES, Difficulty, AiAdvice } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
+import { GuessFeedback, FeedbackIcon } from '../common/GuessFeedback';
 import { common } from '@kit.AbilityKit';
 
 const KEY_DELETE: string = 'DEL';
@@ -230,21 +231,6 @@ export struct GamePage {
   // ---------- UI ----------
 
   @Builder
-  ResultBadge(count: number, medal: string, color: string) {
-    Row({ space: 3 }) {
-      Text(medal)
-        .fontSize(14)
-      Text('×' + count.toString())
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(color)
-    }
-    .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-    .backgroundColor('rgba(255,255,255,0.06)')
-    .borderRadius(999)
-  }
-
-  @Builder
   GuessTiles(guess: string, size: number, fontSize: number) {
     Row({ space: 6 }) {
       ForEach(guess.split(''), (ch: string) => {
@@ -381,9 +367,22 @@ export struct GamePage {
         Text('输入一组互不相同的数字，开始破解')
           .fontSize(13)
           .fontColor(Theme.TEXT_FAINT)
-        Text('🥇 金牌 = 数字和位置都对　🥈 银牌 = 数字对、位置错')
+        Row({ space: 6 }) {
+          FeedbackIcon({ exact: true })
+          Text('正位：数字和位置都对')
+            .fontSize(12)
+            .fontColor(Theme.TEXT_SUB)
+        }
+        Row({ space: 6 }) {
+          FeedbackIcon({ exact: false })
+          Text('错位：数字对、位置不对')
+            .fontSize(12)
+            .fontColor(Theme.TEXT_SUB)
+        }
+        Text('只给数量，不标出具体数字；两类不重复计数')
           .fontSize(12)
-          .fontColor(Theme.TEXT_FAINT)
+          .fontColor(Theme.TEXT_SUB)
+          .textAlign(TextAlign.Center)
       }
       .width('100%')
       .layoutWeight(1)
@@ -392,19 +391,20 @@ export struct GamePage {
       List({ space: 8 }) {
         ForEach(this.records, (rec: GuessRecord) => {
           ListItem() {
-            Row() {
-              Text('#' + rec.index.toString())
-                .fontSize(12)
-                .fontColor(Theme.TEXT_FAINT)
-                .width(30)
-              this.GuessTiles(rec.guess, 34, 18)
-              Blank()
-              this.ResultBadge(rec.a, '🥇', Theme.GOLD)
-              Row().width(6)
-              this.ResultBadge(rec.b, '🥈', Theme.SILVER)
+            Column({ space: 8 }) {
+              Row() {
+                Text('#' + rec.index.toString())
+                  .fontSize(12)
+                  .fontColor(Theme.TEXT_FAINT)
+                  .width(30)
+                this.GuessTiles(rec.guess, 34, 18)
+              }
+              .width('100%')
+              GuessFeedback({ exact: rec.a, misplaced: rec.b })
             }
             .width('100%')
-            .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+            .alignItems(HorizontalAlign.Start)
+            .padding({ left: 12, right: 12, top: 10, bottom: 4 })
             .backgroundColor(Theme.CARD)
             .borderRadius(Theme.R_CARD - 6)
           }

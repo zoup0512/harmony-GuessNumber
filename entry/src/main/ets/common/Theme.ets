@@ -18,9 +18,12 @@ export class Theme {
   static readonly TEXT_FAINT: string = 'rgba(244,242,255,0.35)';
 
   // 强调色
-  static readonly GOLD: string = '#F5B441';   // 主行动色 / 金牌（数字位置全对）
+  static readonly GOLD: string = '#F5B441';   // 主行动色
   static readonly GOLD_DEEP: string = '#E08A2E';
-  static readonly SILVER: string = '#C9D2E3'; // 银牌（数字对、位置错）
+  static readonly POSITION_EXACT: string = '#7BE0C4';
+  static readonly POSITION_EXACT_BG: string = 'rgba(123,224,196,0.12)';
+  static readonly POSITION_MISPLACED: string = '#C8B9FF';
+  static readonly POSITION_MISPLACED_BG: string = 'rgba(200,185,255,0.12)';
   static readonly GREEN: string = '#3FCF8E';  // 成功 / 胜利
   static readonly BLUE: string = '#5B9DF5';   // 辅助信息
   static readonly RED: string = '#F0616D';    // 失败 / 删除

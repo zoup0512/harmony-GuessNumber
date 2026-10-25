@@ -1,13 +1,14 @@
 /**
  * TutorialPage.ets — 新手引导（四步渐进式）
  * Step 0 目标认知：藏起来的密码是什么
- * Step 1 读懂反馈：以 答案5234 / 猜5346 为例，逐步高亮讲解 A 与 B（核心步骤）
+ * Step 1 读懂反馈：以 答案5234 / 猜5346 为例，分阶段讲解正位与错位数量（核心步骤）
  * Step 2 推理策略：三条关键思维
  * Step 3 上手练习：3 位迷你实战局（复用 GameEngine，不限次数，教练实时解读）
  */
 import { GameEngine, GuessRecord } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
+import { GuessFeedback } from '../common/GuessFeedback';
 import { common } from '@kit.AbilityKit';
 
 const DEMO_ANSWER: string = '5234';
@@ -18,22 +19,22 @@ const KEY_SUBMIT: string = 'OK';
 /** 策略卡片数据 */
 interface StrategyCard {
   code: string;
-  gold: number;
-  silver: number;
+  exact: number;
+  misplaced: number;
   tip: string;
 }
 
 const STRATEGIES: StrategyCard[] = [
-  { code: '125', gold: 0, silver: 0, tip: '一个都没中？恭喜！1、2、5 全部排除，信息量最大。' },
-  { code: '367', gold: 0, silver: 2, tip: '只有银牌：数字猜对了，但都放错了位置，换换顺序试试。' },
-  { code: '736', gold: 2, silver: 1, tip: '金牌变多，说明调整方向对了，保住对的位置继续微调。' }
+  { code: '125', exact: 0, misplaced: 0, tip: '正位和错位都是 0，说明 1、2、5 都不在密码里，可以全部排除。' },
+  { code: '367', exact: 0, misplaced: 2, tip: '有 2 个数字在密码里，但都不在本次猜测的位置；仅凭这条反馈，还不知道具体是哪两个。' },
+  { code: '768', exact: 1, misplaced: 2, tip: '这次 3 个数字都在密码里，其中 1 个位置正确、2 个位置错误。结合多轮反馈继续推理，不能仅凭汇总确定该保留哪个位置。' }
 ];
 
 @Component
 export struct TutorialPage {
   @Consume('pathStack') pathStack: NavPathStack;
   @State step: number = 0;          // 当前步骤 0..3
-  @State revealStage: number = 0;   // Step1 讲解进度：0 未开始 / 1 讲A / 2 讲B / 3 出结果
+  @State revealStage: number = 0;   // Step1 讲解进度：0 未开始 / 1 讲正位 / 2 讲错位 / 3 出结果
   // —— 练习局状态 ——
   @State pCurrent: string = '';
   @State pRecords: GuessRecord[] = [];
@@ -55,33 +56,6 @@ export struct TutorialPage {
     const ctx = this.getUIContext().getHostContext() as common.Context;
     StatsStore.setTutorialDone(ctx);
     this.pathStack.pop();
-  }
-
-  // ---------- Step1 示例判定辅助 ----------
-
-  /** 示例猜测中第 i 位的讲解状态：'A' | 'B' | 'X'（不存在） */
-  demoMark(i: number): string {
-    const ch = DEMO_GUESS.charAt(i);
-    const pos = DEMO_ANSWER.indexOf(ch);
-    if (pos === i) {
-      return 'A';
-    }
-    return pos >= 0 ? 'B' : 'X';
-  }
-
-  demoTileColor(i: number): string {
-    const mark = this.demoMark(i);
-    if (mark === 'A' && this.revealStage >= 1) {
-      return Theme.GREEN;
-    }
-    if (mark === 'B' && this.revealStage >= 2) {
-      return Theme.BLUE;
-    }
-    return 'rgba(0,0,0,0)';
-  }
-
-  demoTileOpacity(i: number): number {
-    return this.demoMark(i) === 'X' && this.revealStage >= 2 ? 0.3 : 1;
   }
 
   // ---------- 练习局逻辑 ----------
@@ -122,25 +96,25 @@ export struct TutorialPage {
     }
   }
 
-  /** 教练：把这次的奖牌成绩翻译成人话 */
+  /** 教练：解释这次正位与错位的汇总数量 */
   updateCoach(rec: GuessRecord): void {
     if (rec.a === 3) {
       this.pWon = true;
-      this.coach = '🎉 破解成功！你已经完全掌握玩法，出师了！';
+      this.coach = '正位 3，错位 0：所有数字和位置都正确，破解成功！';
       return;
     }
     if (rec.a === 0 && rec.b === 0) {
-      this.coach = '没拿到奖牌：' + rec.guess.split('').join('、') + ' 都不在密码里，把它们全部排除！';
+      this.coach = '正位 0，错位 0：' + rec.guess.split('').join('、') + ' 都不在密码里，把它们全部排除！';
       return;
     }
-    let text = '🥇×' + rec.a.toString() + ' 🥈×' + rec.b.toString() + '：';
+    let text = '正位 ' + rec.a.toString() + '，错位 ' + rec.b.toString() + '：';
     if (rec.a > 0) {
       text += '有 ' + rec.a.toString() + ' 个数字位置完全正确';
     }
     if (rec.b > 0) {
       text += (rec.a > 0 ? '；' : '') + '有 ' + rec.b.toString() + ' 个数字对了但位置放错';
     }
-    text += '。结合上几次结果推理一下！';
+    text += '。只给数量，不标出具体数字；两类不重复计数。结合多轮反馈推理一下！';
     this.coach = text;
   }
 
@@ -210,21 +184,9 @@ export struct TutorialPage {
   }
 
   @Builder
-  DemoLabel(i: number) {
-    Text(this.demoMark(i) === 'A' ? '🥇' : (this.demoMark(i) === 'B' ? '🥈' : '✕'))
-      .fontSize(this.demoMark(i) === 'X' ? 14 : 16)
-      .fontWeight(FontWeight.Bold)
-      .fontColor(this.demoMark(i) === 'A' ? Theme.GOLD
-        : (this.demoMark(i) === 'B' ? Theme.SILVER : Theme.TEXT_FAINT))
-      .opacity((this.demoMark(i) === 'A' && this.revealStage >= 1) ||
-        (this.demoMark(i) !== 'A' && this.revealStage >= 2) ? 1 : 0)
-      .animation({ duration: 240, curve: Curve.EaseOut })
-  }
-
-  @Builder
   Step1Feedback() {
     Column({ space: 16 }) {
-      Text('第 2 步 · 看懂奖牌（最关键！）')
+      Text('第 2 步 · 看懂反馈（最关键！）')
         .fontSize(13)
         .fontColor(Theme.GOLD)
         .letterSpacing(2)
@@ -244,81 +206,54 @@ export struct TutorialPage {
         .fontSize(12)
         .fontColor(Theme.TEXT_FAINT)
 
-      Column({ space: 4 }) {
-        Row({ space: 8 }) {
-          ForEach(DEMO_GUESS.split(''), (ch: string, idx: number) => {
-            this.Tile(ch, 48, 24,
-              this.demoTileColor(idx) === 'rgba(0,0,0,0)' ? Theme.TEXT : this.demoTileColor(idx),
-              this.demoTileColor(idx) === 'rgba(0,0,0,0)' ? Theme.STROKE : this.demoTileColor(idx),
-              this.demoTileOpacity(idx))
-          }, (ch: string, idx: number) => 'g' + idx.toString())
-        }
-        Row({ space: 8 }) {
-          ForEach(DEMO_GUESS.split(''), (ch: string, idx: number) => {
-            Row() {
-              this.DemoLabel(idx)
-            }
-            .width(48)
-            .justifyContent(FlexAlign.Center)
-          }, (ch: string, idx: number) => 'l' + idx.toString())
-        }
+      Row({ space: 8 }) {
+        ForEach(DEMO_GUESS.split(''), (ch: string, idx: number) => {
+          this.Tile(ch, 48, 24, Theme.TEXT, Theme.STROKE, 1)
+        }, (ch: string, idx: number) => 'g' + idx.toString())
       }
 
       // 讲解文案随阶段变化
       Column({ space: 8 }) {
         if (this.revealStage === 0) {
-          Text('点击下方按钮，看看系统怎么给线索 👇')
+          Text('点击下方按钮，看看系统怎么给线索')
             .fontSize(14)
             .fontColor(Theme.TEXT_SUB)
             .textAlign(TextAlign.Center)
         }
         if (this.revealStage >= 1) {
-          Text('🥇 「5」数字对、位置也对 → 得 1 枚金牌')
+          Text('对照已公布的演示答案，「5」数字对、位置也对，计为 1 个正位。')
             .fontSize(14)
-            .fontColor(Theme.GOLD)
+            .fontColor(Theme.POSITION_EXACT)
+            .lineHeight(22)
         }
         if (this.revealStage >= 2) {
-          Text('🥈 「3」「4」数字对、位置错 → 得 2 枚银牌')
+          Text('「3」「4」在演示答案里，但位置错，计为 2 个错位；正位的「5」不再计入错位。')
             .fontSize(14)
-            .fontColor(Theme.SILVER)
-          Text('✕ 「6」不在密码里')
+            .fontColor(Theme.POSITION_MISPLACED)
+            .lineHeight(22)
+          Text('「6」不在密码里，不计入正位或错位。')
             .fontSize(14)
             .fontColor(Theme.TEXT_FAINT)
         }
         if (this.revealStage >= 3) {
-          Row({ space: 8 }) {
-            Text('所以这次的成绩是')
+          Column({ space: 8 }) {
+            Text('所以这次的汇总反馈是')
               .fontSize(14)
               .fontColor(Theme.TEXT)
-            Text('🥇×1 🥈×2')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.GOLD)
-              .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-              .backgroundColor('rgba(245,180,65,0.14)')
-              .borderRadius(999)
+            GuessFeedback({ exact: 1, misplaced: 2 })
+            Text('实际对局只给数量，不标出具体数字；两类不重复计数。')
+              .fontSize(13)
+              .fontColor(Theme.TEXT_SUB)
+              .lineHeight(21)
           }
+          .width('100%')
           .transition(TransitionEffect.OPACITY.animation({ duration: 300 }))
         }
       }
-      .height(96)
+      .width('100%')
       .justifyContent(FlexAlign.Center)
     }
     .width('100%')
-  }
-
-  /** 奖牌图标与数量分开放入居中 Row，避免 emoji 与数字基线不齐 */
-  @Builder
-  MedalCount(medal: string, count: number, color: string) {
-    Row({ space: 2 }) {
-      Text(medal)
-        .fontSize(14)
-      Text('×' + count.toString())
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(color)
-    }
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -332,37 +267,19 @@ export struct TutorialPage {
         .fontSize(14)
         .fontColor(Theme.TEXT_SUB)
       ForEach(STRATEGIES, (s: StrategyCard, idx: number) => {
-        Row({ space: 12 }) {
-          Column({ space: 2 }) {
-            Text(s.code)
-              .fontSize(17)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.TEXT)
-            if (s.gold === 0 && s.silver === 0) {
-              Text('没奖牌')
-                .fontSize(13)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(Theme.RED)
-            } else {
-              Row({ space: 5 }) {
-                if (s.gold > 0) {
-                  this.MedalCount('🥇', s.gold, Theme.GOLD)
-                }
-                if (s.silver > 0) {
-                  this.MedalCount('🥈', s.silver, Theme.SILVER)
-                }
-              }
-              .alignItems(VerticalAlign.Center)
-            }
-          }
-          .width(80)
+        Column({ space: 10 }) {
+          Text('示例猜测：' + s.code)
+            .fontSize(17)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Theme.TEXT)
+          GuessFeedback({ exact: s.exact, misplaced: s.misplaced })
           Text(s.tip)
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
             .lineHeight(20)
-            .layoutWeight(1)
         }
         .width('100%')
+        .alignItems(HorizontalAlign.Start)
         .padding(14)
         .backgroundColor(Theme.CARD)
         .borderRadius(Theme.R_CARD - 6)
@@ -425,29 +342,25 @@ export struct TutorialPage {
       if (this.pRecords.length > 0) {
         Column({ space: 6 }) {
           ForEach(this.pRecords.slice(0, 3), (rec: GuessRecord) => {
-          Row({ space: 10 }) {
-            Text('#' + rec.index.toString())
-              .fontSize(11)
-              .fontColor(Theme.TEXT_FAINT)
-              .width(24)
-            Text(rec.guess.split('').join(' '))
-              .fontSize(15)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.TEXT)
-            Blank()
-            Text('🥇×' + rec.a.toString())
-              .fontSize(13)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.GOLD)
-            Text('🥈×' + rec.b.toString())
-              .fontSize(13)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Theme.SILVER)
-          }
-          .width('100%')
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .backgroundColor(Theme.CARD)
-          .borderRadius(10)
+            Column({ space: 8 }) {
+              Row({ space: 10 }) {
+                Text('#' + rec.index.toString())
+                  .fontSize(11)
+                  .fontColor(Theme.TEXT_FAINT)
+                  .width(24)
+                Text(rec.guess.split('').join(' '))
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(Theme.TEXT)
+              }
+              .width('100%')
+              GuessFeedback({ exact: rec.a, misplaced: rec.b })
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
+            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+            .backgroundColor(Theme.CARD)
+            .borderRadius(10)
           }, (rec: GuessRecord) => rec.index.toString())
         }
         .width('100%')
