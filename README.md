@@ -2,7 +2,7 @@
 
 经典 1A2B 猜数字益智游戏的鸿蒙原生实现（ArkTS / Stage 模型）。
 
-- bundleName: com.razor.game.h.guess
+- bundleName: com.razor.h.v2.guess
 - SDK: 6.0.2(22)
 - 功能：三档难度、定制防错键盘、猜测历史、限时计时、单次提示、战绩持久化
 

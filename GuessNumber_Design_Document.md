@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 应用名称 | 数字解密（Guess Number / 1A2B） |
-| Bundle Name | com.razor.game.h.guess |
+| Bundle Name | com.razor.h.v2.guess |
 | 目标平台 | HarmonyOS 手机 / 平板（Stage 模型） |
 | 编译版本 | compileSdk / targetSdk / compatibleSdk = 6.0.2(22) |
 | 开发语言 | ArkTS（ArkUI 声明式范式） |
@@ -125,7 +125,7 @@ entry/src/main/ets
 ## 六、工程配置
 
 - 根 `build-profile.json5`：compileSdk / compatibleSdk / targetSdk 均为 `6.0.2(22)`，runtimeOS 为 HarmonyOS；
-- `AppScope/app.json5`：bundleName 为 `com.razor.game.h.guess`；
+- `AppScope/app.json5`：bundleName 为 `com.razor.h.v2.guess`；
 - `hvigor/hvigor-config.json5`：modelVersion `6.0.2`；
 - 权限：无需任何敏感权限，纯本地离线运行。
 

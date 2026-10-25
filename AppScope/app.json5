@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.razor.game.h.guess",
+    "bundleName": "com.razor.h.v2.guess",
     "vendor": "razor",
     "versionCode": 1000000,
     "versionName": "1.0.0",
