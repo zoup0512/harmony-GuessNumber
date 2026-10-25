@@ -374,18 +374,21 @@ export struct GamePage {
         Text('输入一组互不相同的数字，开始破解')
           .fontSize(13)
           .fontColor(Theme.TEXT_FAINT)
-        Row({ space: 6 }) {
-          FeedbackIcon({ exact: true })
-          Text('正位：数字和位置都对')
-            .fontSize(12)
-            .fontColor(Theme.TEXT_SUB)
+        Column({ space: 6 }) {
+          Row({ space: 6 }) {
+            FeedbackIcon({ exact: true })
+            Text('正位：数字和位置都对')
+              .fontSize(12)
+              .fontColor(Theme.TEXT_SUB)
+          }
+          Row({ space: 6 }) {
+            FeedbackIcon({ exact: false })
+            Text('错位：数字对、位置不对')
+              .fontSize(12)
+              .fontColor(Theme.TEXT_SUB)
+          }
         }
-        Row({ space: 6 }) {
-          FeedbackIcon({ exact: false })
-          Text('错位：数字对、位置不对')
-            .fontSize(12)
-            .fontColor(Theme.TEXT_SUB)
-        }
+        .alignItems(HorizontalAlign.Start)
         Text('只给数量，不标出具体数字；两类不重复计数')
           .fontSize(12)
           .fontColor(Theme.TEXT_SUB)

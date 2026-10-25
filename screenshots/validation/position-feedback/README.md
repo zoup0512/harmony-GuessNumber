@@ -107,3 +107,17 @@
 本轮模拟器包 SHA-256：
 
 `63a0aab518146ddd76f964ec107eb083e94394494921ad968d4ce96c1df9dbba`
+
+## 对局空态图标左侧对齐修复（2026-10-26）
+
+原空态的正位、错位说明分别是父 Column 中的两个独立 Row，各自水平居中，文字宽度不同导致图标左侧错开。将两个 Row 放入同一个内容自适应的 Column，并让其内部左对齐，整组仍居中显示。
+
+同一台 Pura90 模拟器上修改前后对照：
+
+- 修改前：[空态](before-empty-icon-alignment.png)，正位行文字左缘 x=499px，错位行 x=478px，相差 21px。
+- 修改后：[空态](after-empty-icon-alignment.png)，两行文字左缘**均为 x=478px**；截图中图标外框左边缘同样对齐。
+- 提交猜测后的回归检查：[历史记录](after-empty-icon-alignment-guess.png)，首数字/正位左缘同为210px、末数字/错位右缘同为861px，说明既有历史反馈两端对齐未受影响。应用进程无 Error/Fatal 日志。
+
+`CompileArkTS`、`PackageHap`、`PackingCheck` 通过；项目原有无效签名证书路径仍令 `SignHap` 失败，未签名包在开发模拟器安装运行成功。本轮包 SHA-256：
+
+`5736efe36278fcb6b79611bb6fbdd60dd4af335081b40027808f6fe5ceefe21e`
