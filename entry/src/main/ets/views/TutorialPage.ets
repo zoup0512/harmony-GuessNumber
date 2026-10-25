@@ -18,15 +18,15 @@ const KEY_SUBMIT: string = 'OK';
 /** 策略卡片数据 */
 interface StrategyCard {
   code: string;
-  result: string;
+  gold: number;
+  silver: number;
   tip: string;
-  color: string;
 }
 
 const STRATEGIES: StrategyCard[] = [
-  { code: '125', result: '没奖牌', tip: '一个都没中？恭喜！1、2、5 全部排除，信息量最大。', color: Theme.RED },
-  { code: '367', result: '🥈×2', tip: '只有银牌：数字猜对了，但都放错了位置，换换顺序试试。', color: Theme.SILVER },
-  { code: '736', result: '🥇×2 🥈×1', tip: '金牌变多，说明调整方向对了，保住对的位置继续微调。', color: Theme.GOLD }
+  { code: '125', gold: 0, silver: 0, tip: '一个都没中？恭喜！1、2、5 全部排除，信息量最大。' },
+  { code: '367', gold: 0, silver: 2, tip: '只有银牌：数字猜对了，但都放错了位置，换换顺序试试。' },
+  { code: '736', gold: 2, silver: 1, tip: '金牌变多，说明调整方向对了，保住对的位置继续微调。' }
 ];
 
 @Component
@@ -307,6 +307,20 @@ export struct TutorialPage {
     .width('100%')
   }
 
+  /** 奖牌图标与数量分开放入居中 Row，避免 emoji 与数字基线不齐 */
+  @Builder
+  MedalCount(medal: string, count: number, color: string) {
+    Row({ space: 2 }) {
+      Text(medal)
+        .fontSize(14)
+      Text('×' + count.toString())
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(color)
+    }
+    .alignItems(VerticalAlign.Center)
+  }
+
   @Builder
   Step2Strategy() {
     Column({ space: 14 }) {
@@ -324,12 +338,24 @@ export struct TutorialPage {
               .fontSize(17)
               .fontWeight(FontWeight.Bold)
               .fontColor(Theme.TEXT)
-            Text(s.result)
-              .fontSize(13)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(s.color)
+            if (s.gold === 0 && s.silver === 0) {
+              Text('没奖牌')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(Theme.RED)
+            } else {
+              Row({ space: 5 }) {
+                if (s.gold > 0) {
+                  this.MedalCount('🥇', s.gold, Theme.GOLD)
+                }
+                if (s.silver > 0) {
+                  this.MedalCount('🥈', s.silver, Theme.SILVER)
+                }
+              }
+              .alignItems(VerticalAlign.Center)
+            }
           }
-          .width(64)
+          .width(80)
           Text(s.tip)
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
