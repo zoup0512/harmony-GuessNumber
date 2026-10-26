@@ -1,0 +1,8 @@
+{
+  "name": "current-model-image",
+  "version": "0.1.0",
+  "description": "使用当前会话模型的 Responses 生图工具，自动保存并验证 PNG，支持精确尺寸导出。",
+  "author": { "name": "Local developer" },
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json"
+}

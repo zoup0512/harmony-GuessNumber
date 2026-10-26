@@ -1,0 +1,18 @@
+{
+  "name": "dev-guessnumber-2211257a",
+  "plugins": [
+    {
+      "name": "current-model-image",
+      "source": "./current-model-image",
+      "version": "0.1.0",
+      "description": "使用当前会话模型的 Responses 生图工具，自动保存并验证 PNG，支持精确尺寸导出。",
+      "displayName": "Current Model Image",
+      "displayName_i18n": {
+        "zh-CN": "当前模型生图"
+      },
+      "description_i18n": {
+        "zh-CN": "用当前模型的 Responses 工具生成图片，自动保存并验证 PNG，无需临时 Python 脚本。"
+      }
+    }
+  ]
+}
