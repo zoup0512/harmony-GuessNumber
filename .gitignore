@@ -37,3 +37,10 @@ yarn.lock
 Thumbs.db
 *.swp
 *.swo
+
+# Debug signing material is versioned so every development machine signs identically.
+# The material/ directory holds the DevEco secret-store keys that decrypt the
+# passwords in build-profile.json5; without it signing fails elsewhere.
+/keystore/*
+!/keystore/debug/
+!/keystore/debug/**

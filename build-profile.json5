@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\24790\\.ohos\\config\\default_harmony-GuessNumber_9Hr4FSN_sC8_iIphDCrKoVQySSiuvosBfyFxNbRQpdQ=.cer",
+          "certpath": "keystore/debug/debug.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001BBD58290061AE57D5CB1CF7DF773F104CA1D526B9334CBCE3DCD38DC5ADF5A29F9193E839925061",
-          "profile": "C:\\Users\\24790\\.ohos\\config\\default_harmony-GuessNumber_9Hr4FSN_sC8_iIphDCrKoVQySSiuvosBfyFxNbRQpdQ=.p7b",
+          "keyPassword": "0000001BC8608620678AD76640E688AA76331FFAB6EB2B052C2D73C2E9556231550BB5C98542897737AD46",
+          "profile": "keystore/debug/debug.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\24790\\.ohos\\config\\default_harmony-GuessNumber_9Hr4FSN_sC8_iIphDCrKoVQySSiuvosBfyFxNbRQpdQ=.p12",
-          "storePassword": "0000001B9201357D8D3E88E52203DB25902219B18C6DB9EB372304484375BEDC3957ECFF55B5C25A410304"
+          "storeFile": "keystore/debug/debug.p12",
+          "storePassword": "0000001B6913D239B344742F60DB721037BBC60B26EE4759E99D9AF5204B1EA3346ADB02353BE641E8480E"
         }
       }
     ],
