@@ -18,6 +18,7 @@ const KEY_WINS: string = 'wins';
 const KEY_BEST: string = 'best';
 const KEY_STREAK: string = 'streak';
 const KEY_TUTORIAL: string = 'tutorial_done';
+const KEY_TUTORIAL_VOICE: string = 'tutorial_voice_enabled';
 
 export class StatsStore {
   private static async pref(ctx: common.Context): Promise<preferences.Preferences> {
@@ -61,6 +62,17 @@ export class StatsStore {
   static async isTutorialDone(ctx: common.Context): Promise<boolean> {
     const p = await StatsStore.pref(ctx);
     return await p.get(KEY_TUTORIAL, false) as boolean;
+  }
+
+  static async isTutorialVoiceEnabled(ctx: common.Context): Promise<boolean> {
+    const p = await StatsStore.pref(ctx);
+    return await p.get(KEY_TUTORIAL_VOICE, false) as boolean;
+  }
+
+  static async setTutorialVoiceEnabled(ctx: common.Context, enabled: boolean): Promise<void> {
+    const p = await StatsStore.pref(ctx);
+    await p.put(KEY_TUTORIAL_VOICE, enabled);
+    await p.flush();
   }
 
   /** 标记新手引导已完成 */

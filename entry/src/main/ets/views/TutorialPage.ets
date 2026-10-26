@@ -2,7 +2,7 @@
  * TutorialPage.ets — 新手引导（四步渐进式）
  * Step 0 目标认知：藏起来的密码是什么
  * Step 1 读懂反馈：以 答案5234 / 猜5346 为例，分阶段讲解正位与错位数量（核心步骤）
- * Step 2 推理策略：三条关键思维
+ * Step 2 推理策略：排除法、理解检查与可选技巧
  * Step 3 上手练习：3 位迷你实战局（复用 GameEngine，不限次数，教练实时解读）
  */
 import { GameEngine, GuessRecord } from '../model/GameEngine';
@@ -11,6 +11,9 @@ import { Theme } from '../common/Theme';
 import { FeedbackBadge } from '../common/GuessFeedback';
 import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
 import { common } from '@kit.AbilityKit';
+import { accessibility } from '@kit.AccessibilityKit';
+import { TutorialClip, tutorialClip, practiceClip } from '../model/TutorialNarration';
+import { TutorialVoicePlayer, TutorialVoiceState } from '../model/TutorialVoicePlayer';
 
 const DEMO_ANSWER: string = '5234';
 const DEMO_GUESS: string = '5346';
@@ -41,7 +44,31 @@ export struct TutorialPage {
   @State pRecords: GuessRecord[] = [];
   @State pWon: boolean = false;
   @State coach: string = '试着输入 3 个不同的数字，输满后会自动破解';
+  @State voiceEnabled: boolean = false;
+  @State voiceState: TutorialVoiceState = 'idle';
+  @State voiceCaption: string = tutorialClip('goal').text;
+  @State voiceChoiceMade: boolean = false;
+  @State screenReader: boolean = false;
+  @State quizAnswer: number = -1;
+  @State showMoreTips: boolean = false;
+  @State practiceSummary: boolean = false;
+  @StorageLink('appForeground') @Watch('onForegroundChanged') appForeground: boolean = true;
   private engine: GameEngine = new GameEngine();
+  private voice: TutorialVoicePlayer | undefined = undefined;
+  private currentClip: TutorialClip = tutorialClip('goal');
+  private active: boolean = false;
+  private visible: boolean = false;
+  private finishing: boolean = false;
+  private autoSubmitTimer: number = -1;
+  private preferenceRevision: number = 0;
+  private preferenceWrites: Promise<void> = Promise.resolve();
+  private contentScroller: Scroller = new Scroller();
+  private screenReaderChanged: (enabled: boolean) => void = (enabled: boolean): void => {
+    this.screenReader = enabled;
+    if (enabled) {
+      this.voice?.stop();
+    }
+  };
   private keyRows: string[][] = [
     ['1', '2', '3', '4'],
     ['5', '6', '7', '8'],
@@ -49,21 +76,181 @@ export struct TutorialPage {
   ];
 
   aboutToAppear(): void {
+    this.active = true;
     this.engine.start(3, 999); // 练习局：3 位，不限次数
+    const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    this.voice = new TutorialVoicePlayer(ctx.resourceManager, (state: TutorialVoiceState): void => {
+      if (this.active) {
+        this.voiceState = state;
+      }
+    });
+    const revision = this.preferenceRevision;
+    StatsStore.isTutorialVoiceEnabled(ctx).then((enabled: boolean): void => {
+      if (this.active && revision === this.preferenceRevision) {
+        this.voiceEnabled = enabled;
+        this.voiceChoiceMade = enabled;
+      }
+    }).catch((): void => {});
+    try {
+      this.screenReader = accessibility.isScreenReaderOpenSync();
+      accessibility.on('screenReaderStateChange', this.screenReaderChanged);
+    } catch (error) {
+      this.screenReader = true;
+    }
+  }
+
+  aboutToDisappear(): void {
+    this.active = false;
+    this.visible = false;
+    this.clearAutoSubmit();
+    this.voice?.dispose();
+    try {
+      accessibility.off('screenReaderStateChange', this.screenReaderChanged);
+    } catch (error) {
+    }
+  }
+
+  onForegroundChanged(): void {
+    if (!this.appForeground) {
+      this.clearAutoSubmit();
+      this.voice?.stop();
+    }
+  }
+
+  clearAutoSubmit(): void {
+    if (this.autoSubmitTimer !== -1) {
+      clearTimeout(this.autoSubmitTimer);
+      this.autoSubmitTimer = -1;
+    }
+  }
+
+  selectClip(clip: TutorialClip, autoplay: boolean = true): void {
+    this.voice?.stop();
+    this.currentClip = clip;
+    this.voiceCaption = clip.text;
+    if (autoplay && this.voiceChoiceMade && this.voiceEnabled && !this.screenReader &&
+      this.active && this.visible && this.appForeground) {
+      this.voice?.play(clip.id);
+    }
+  }
+
+  selectStepClip(): void {
+    if (this.step === 0) {
+      this.selectClip(tutorialClip('goal'));
+    } else if (this.step === 1) {
+      const ids: string[] = ['demo', 'exact', 'misplaced', 'summary'];
+      this.selectClip(tutorialClip(ids[this.revealStage]));
+    } else if (this.step === 2) {
+      this.selectClip(tutorialClip(this.quizAnswer === 1 ? 'quiz_correct' : 'strategy'));
+    } else if (this.practiceSummary) {
+      this.selectClip(tutorialClip('ready'));
+    } else if (this.pRecords.length > 0) {
+      this.selectClip(practiceClip(this.pRecords[0].a, this.pRecords[0].b));
+    } else {
+      this.selectClip(tutorialClip('practice'));
+    }
+  }
+
+  chooseVoice(enabled: boolean): void {
+    this.preferenceRevision++;
+    this.voiceChoiceMade = true;
+    this.voiceEnabled = enabled;
+    const ctx = this.getUIContext().getHostContext() as common.Context;
+    this.preferenceWrites = this.preferenceWrites.then((): Promise<void> => {
+      return StatsStore.setTutorialVoiceEnabled(ctx, enabled);
+    }).catch((): void => {});
+    this.selectClip(this.currentClip, enabled);
+  }
+
+  togglePlayback(): void {
+    if (this.screenReader || !this.visible || !this.appForeground) {
+      return;
+    }
+    if (!this.voiceEnabled || !this.voiceChoiceMade) {
+      this.chooseVoice(true);
+    } else if (this.voiceState === 'playing' || this.voiceState === 'loading') {
+      this.voice?.pause();
+    } else if (this.voiceState === 'paused') {
+      this.voice?.resume();
+    } else {
+      this.voice?.play(this.currentClip.id);
+    }
+  }
+
+  replayVoice(): void {
+    if (!this.screenReader && this.visible && this.appForeground) {
+      this.chooseVoice(true);
+    }
+  }
+
+  playbackLabel(): string {
+    if (this.voiceState === 'playing' || this.voiceState === 'loading') {
+      return '暂停';
+    }
+    return this.voiceState === 'paused' ? '继续播放' : '播放讲解';
+  }
+
+  voiceStatus(): string {
+    if (this.screenReader) {
+      return '读屏已开启，旁白已关闭';
+    }
+    if (this.voiceState === 'error') {
+      return '语音暂不可用，可以重试或继续阅读';
+    }
+    if (!this.voiceEnabled || !this.voiceChoiceMade) {
+      return '点击播放才会发声';
+    }
+    if (this.voiceState === 'loading') {
+      return '正在准备讲解';
+    }
+    if (this.voiceState === 'playing') {
+      return '正在讲解';
+    }
+    if (this.voiceState === 'paused') {
+      return '已暂停';
+    }
+    return this.voiceState === 'completed' ? '本段结束，点击下一步继续' : '待播放';
+  }
+
+  answerQuiz(answer: number): void {
+    this.quizAnswer = answer;
+    this.selectClip(tutorialClip(answer === 1 ? 'quiz_correct' : 'quiz_retry'));
+  }
+
+  onPrevious(): void {
+    this.clearAutoSubmit();
+    if (this.step === 3 && this.practiceSummary) {
+      this.practiceSummary = false;
+    } else if (this.step === 1 && this.revealStage > 0) {
+      this.revealStage--;
+    } else if (this.step > 0) {
+      this.step--;
+    }
+    this.selectStepClip();
+    this.contentScroller.scrollEdge(Edge.Top);
   }
 
   finish(): void {
+    if (this.finishing) {
+      return;
+    }
+    this.finishing = true;
+    this.visible = false;
+    this.clearAutoSubmit();
+    this.voice?.dispose();
     const ctx = this.getUIContext().getHostContext() as common.Context;
-    StatsStore.setTutorialDone(ctx);
+    StatsStore.setTutorialDone(ctx).catch((): void => {});
     this.pathStack.pop();
   }
 
   // ---------- 练习局逻辑 ----------
 
   onPracticeKey(key: string): void {
-    if (this.pWon) {
+    if (this.pWon || this.step !== 3 || this.practiceSummary || !this.visible || !this.appForeground) {
       return;
     }
+    this.clearAutoSubmit();
+    this.voice?.stop();
     if (key === KEY_DELETE) {
       if (this.pCurrent.length > 0) {
         this.pCurrent = this.pCurrent.substring(0, this.pCurrent.length - 1);
@@ -87,8 +274,9 @@ export struct TutorialPage {
       this.pCurrent += key;
       // 与正式对局一致：输满位数自动破解
       if (this.pCurrent.length === 3) {
-        setTimeout(() => {
-          if (!this.pWon && this.pCurrent.length === 3) {
+        this.autoSubmitTimer = setTimeout(() => {
+          this.autoSubmitTimer = -1;
+          if (this.active && this.visible && this.step === 3 && !this.pWon && this.pCurrent.length === 3) {
             this.onPracticeKey(KEY_SUBMIT);
           }
         }, 280);
@@ -98,6 +286,7 @@ export struct TutorialPage {
 
   /** 教练：解释这次正位与错位的汇总数量 */
   updateCoach(rec: GuessRecord): void {
+    this.selectClip(practiceClip(rec.a, rec.b));
     if (rec.a === 3) {
       this.pWon = true;
       this.coach = '正位 3，错位 0：所有数字和位置都正确，破解成功！';
@@ -184,6 +373,86 @@ export struct TutorialPage {
     }
   }
 
+  @Builder
+  VoicePanel() {
+    Column({ space: 10 }) {
+      Row() {
+        Text('语音教练')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.GOLD)
+        Blank()
+        if (this.voiceChoiceMade) {
+          Button(this.voiceEnabled ? '关闭语音' : '开启语音', { type: ButtonType.Normal })
+            .fontSize(12)
+            .fontColor(Theme.TEXT)
+            .backgroundColor(Theme.CARD_STRONG)
+            .borderRadius(10)
+            .height(40)
+            .enabled(!this.screenReader)
+            .onClick(() => this.chooseVoice(!this.voiceEnabled))
+        }
+      }
+      .width('100%')
+      Text(this.voiceStatus())
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
+      Text(this.voiceCaption)
+        .fontSize(14)
+        .fontColor(Theme.TEXT)
+        .lineHeight(22)
+        .width('100%')
+      if (!this.voiceChoiceMade) {
+        Row({ space: 8 }) {
+          Button('边听边学', { type: ButtonType.Normal })
+            .fontSize(14)
+            .fontColor('#1B1030')
+            .backgroundColor(Theme.GOLD)
+            .borderRadius(12)
+            .height(44)
+            .layoutWeight(1)
+            .enabled(!this.screenReader)
+            .onClick(() => this.chooseVoice(true))
+          Button('静音阅读', { type: ButtonType.Normal })
+            .fontSize(14)
+            .fontColor(Theme.TEXT)
+            .backgroundColor(Theme.CARD_STRONG)
+            .borderRadius(12)
+            .height(44)
+            .layoutWeight(1)
+            .onClick(() => this.chooseVoice(false))
+        }
+        .width('100%')
+      } else if (this.voiceEnabled && !this.screenReader) {
+        Row({ space: 8 }) {
+          Button(this.playbackLabel(), { type: ButtonType.Normal })
+            .fontSize(13)
+            .fontColor(Theme.TEXT)
+            .backgroundColor(Theme.CARD_STRONG)
+            .height(44)
+            .borderRadius(12)
+            .layoutWeight(1)
+            .onClick(() => this.togglePlayback())
+          Button('重听本段', { type: ButtonType.Normal })
+            .fontSize(13)
+            .fontColor(Theme.TEXT)
+            .backgroundColor(Theme.CARD_STRONG)
+            .height(44)
+            .borderRadius(12)
+            .layoutWeight(1)
+            .onClick(() => this.replayVoice())
+        }
+        .width('100%')
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(14)
+    .backgroundColor(Theme.CARD)
+    .borderRadius(Theme.R_CARD)
+    .margin({ top: 16 })
+  }
+
   // ---------- 各步骤内容 ----------
 
   @Builder
@@ -212,6 +481,16 @@ export struct TutorialPage {
     .width('100%')
   }
 
+  demoColor(digit: string): string {
+    if (this.revealStage === 1 && digit === '5') {
+      return Theme.POSITION_EXACT;
+    }
+    if (this.revealStage === 2 && (digit === '3' || digit === '4')) {
+      return Theme.POSITION_MISPLACED;
+    }
+    return Theme.TEXT;
+  }
+
   @Builder
   Step1Feedback() {
     Column({ space: 16 }) {
@@ -226,8 +505,8 @@ export struct TutorialPage {
           .fontColor(Theme.TEXT_FAINT)
         Row({ space: 8 }) {
           ForEach(DEMO_ANSWER.split(''), (ch: string, idx: number) => {
-            this.Tile(ch, 40, 20, Theme.TEXT, Theme.STROKE, 0.85)
-          }, (ch: string, idx: number) => 'a' + idx.toString())
+            this.Tile(ch, 40, 20, this.demoColor(ch), this.demoColor(ch), 1)
+          }, (ch: string, idx: number) => 'a' + idx.toString() + '_' + this.revealStage.toString())
         }
       }
 
@@ -235,12 +514,11 @@ export struct TutorialPage {
         .fontSize(12)
         .fontColor(Theme.TEXT_FAINT)
 
-      Column() {
-        this.FeedbackTiles(DEMO_GUESS, 42)
+      Row({ space: 8 }) {
+        ForEach(DEMO_GUESS.split(''), (ch: string, idx: number) => {
+          this.Tile(ch, 40, 20, this.demoColor(ch), this.demoColor(ch), 1)
+        }, (ch: string, idx: number) => 'g' + idx.toString() + '_' + this.revealStage.toString())
       }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-      .padding({ left: 6 })
 
       // 讲解文案随阶段变化
       Column({ space: 8 }) {
@@ -250,13 +528,13 @@ export struct TutorialPage {
             .fontColor(Theme.TEXT_SUB)
             .textAlign(TextAlign.Center)
         }
-        if (this.revealStage >= 1) {
+        if (this.revealStage === 1) {
           Text('对照已公布的演示答案，「5」数字对、位置也对，计为 1 个正位。')
             .fontSize(14)
             .fontColor(Theme.POSITION_EXACT)
             .lineHeight(22)
         }
-        if (this.revealStage >= 2) {
+        if (this.revealStage === 2) {
           Text('「3」「4」在演示答案里，但位置错，计为 2 个错位；正位的「5」不再计入错位。')
             .fontSize(14)
             .fontColor(Theme.POSITION_MISPLACED)
@@ -289,14 +567,14 @@ export struct TutorialPage {
   @Builder
   Step2Strategy() {
     Column({ space: 14 }) {
-      Text('第 3 步 · 高手思维')
+      Text('第 3 步 · 跟着线索猜')
         .fontSize(13)
         .fontColor(Theme.GOLD)
         .letterSpacing(2)
-      Text('每条线索都在缩小范围，会推理才能又快又准')
+      Text('先学一个方法：两个数量都是 0，就换一组数字')
         .fontSize(14)
         .fontColor(Theme.TEXT_SUB)
-      ForEach(STRATEGIES, (s: StrategyCard, idx: number) => {
+      ForEach(this.showMoreTips ? STRATEGIES : STRATEGIES.slice(0, 1), (s: StrategyCard, idx: number) => {
         Column({ space: 10 }) {
           Text('示例猜测')
             .fontSize(13)
@@ -316,10 +594,52 @@ export struct TutorialPage {
         .borderWidth(1)
         .borderColor(Theme.STROKE)
       }, (s: StrategyCard, idx: number) => idx.toString())
-      Text('💡 卡住时还能用一次「提示」，但会消耗 1 次机会')
+      Button(this.showMoreTips ? '收起更多技巧' : '更多技巧（选看）', { type: ButtonType.Normal })
         .fontSize(13)
-        .fontColor(Theme.GOLD)
-        .opacity(0.9)
+        .fontColor(Theme.TEXT)
+        .backgroundColor(Theme.CARD_STRONG)
+        .borderRadius(12)
+        .height(44)
+        .onClick(() => this.showMoreTips = !this.showMoreTips)
+      Column({ space: 10 }) {
+        Text('小检查 · 另一局，答案未知')
+          .fontSize(14)
+          .fontColor(Theme.GOLD)
+        Text('只看到「正位 1」，能知道是哪一位正确吗？')
+          .fontSize(15)
+          .fontColor(Theme.TEXT)
+          .lineHeight(23)
+        Button('能，就是第一位', { type: ButtonType.Normal })
+          .fontSize(14)
+          .fontColor(this.quizAnswer === 0 ? Theme.GOLD : Theme.TEXT)
+          .width('100%')
+          .height(48)
+          .backgroundColor(Theme.CARD_STRONG)
+          .borderRadius(12)
+          .onClick(() => this.answerQuiz(0))
+        Button('不能，只知道有一个位置正确', { type: ButtonType.Normal })
+          .fontSize(14)
+          .fontColor(this.quizAnswer === 1 ? Theme.GREEN : Theme.TEXT)
+          .width('100%')
+          .height(54)
+          .backgroundColor(Theme.CARD_STRONG)
+          .borderRadius(12)
+          .onClick(() => this.answerQuiz(1))
+        if (this.quizAnswer >= 0) {
+          Text(tutorialClip(this.quizAnswer === 1 ? 'quiz_correct' : 'quiz_retry').text)
+            .fontSize(13)
+            .fontColor(this.quizAnswer === 1 ? Theme.GREEN : Theme.GOLD)
+            .lineHeight(21)
+        }
+        Text('可以随时下一步，不必答对才能继续。')
+          .fontSize(12)
+          .fontColor(Theme.TEXT_SUB)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding(14)
+      .backgroundColor(Theme.CARD)
+      .borderRadius(Theme.R_CARD)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -445,6 +765,30 @@ export struct TutorialPage {
     .width('100%')
   }
 
+  @Builder
+  PracticeReady() {
+    Column({ space: 18 }) {
+      Text('准备好正式挑战了吗？')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(Theme.GOLD)
+      Text('入门 · 3 位 / 6 次机会\n经典 · 4 位 / 8 次机会\n大师 · 5 位 / 10 次机会')
+        .fontSize(17)
+        .fontColor(Theme.TEXT)
+        .lineHeight(32)
+      Text('每次猜测、使用提示或 AI 军师都会消耗 1 次机会。\n计时只记录用时，不会超时失败。')
+        .fontSize(14)
+        .fontColor(Theme.TEXT_SUB)
+        .lineHeight(24)
+      Text('回到首页选择难度；也可以点上一步继续练习。')
+        .fontSize(13)
+        .fontColor(Theme.TEXT_SUB)
+        .lineHeight(22)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
   // ---------- 底部导航 ----------
 
   primaryLabel(): string {
@@ -452,21 +796,30 @@ export struct TutorialPage {
       return this.revealStage === 0 ? '看讲解' : '继续';
     }
     if (this.step === 3) {
-      return this.pWon ? '完成教学，出发！' : '我学会了，直接开始';
+      return this.practiceSummary ? '完成教学，返回首页' : '了解正式局规则';
     }
     return '下一步';
   }
 
   onPrimary(): void {
+    this.clearAutoSubmit();
+    if (!this.voiceChoiceMade) {
+      this.preferenceRevision++;
+      this.voiceChoiceMade = true;
+      this.voiceEnabled = false;
+    }
     if (this.step === 1 && this.revealStage < 3) {
       this.revealStage++;
-      return;
-    }
-    if (this.step < 3) {
+    } else if (this.step < 3) {
       this.step++;
+    } else if (!this.practiceSummary) {
+      this.practiceSummary = true;
+    } else {
+      this.finish();
       return;
     }
-    this.finish();
+    this.selectStepClip();
+    this.contentScroller.scrollEdge(Edge.Top);
   }
 
   build() {
@@ -476,6 +829,16 @@ export struct TutorialPage {
         Row() {
           this.StepDots()
           Blank()
+          if (this.voiceChoiceMade && !this.screenReader) {
+            Button(this.voiceEnabled ? '语音开' : '语音关', { type: ButtonType.Normal })
+              .fontSize(12)
+              .fontColor(Theme.TEXT)
+              .backgroundColor(Theme.CARD)
+              .borderRadius(12)
+              .height(40)
+              .accessibilityText(this.voiceEnabled ? '关闭语音讲解' : '开启语音讲解')
+              .onClick(() => this.chooseVoice(!this.voiceEnabled))
+          }
           Text('跳过')
             .fontSize(14)
             .fontColor(Theme.TEXT_SUB)
@@ -485,7 +848,7 @@ export struct TutorialPage {
         .width('100%')
 
         // 内容区
-        Scroll() {
+        Scroll(this.contentScroller) {
           Column() {
             if (this.step === 0) {
               this.Step0Goal()
@@ -493,9 +856,12 @@ export struct TutorialPage {
               this.Step1Feedback()
             } else if (this.step === 2) {
               this.Step2Strategy()
+            } else if (this.practiceSummary) {
+              this.PracticeReady()
             } else {
               this.Step3Practice()
             }
+            this.VoicePanel()
           }
           .width('100%')
           .padding({ top: 18, bottom: 12 })
@@ -515,12 +881,7 @@ export struct TutorialPage {
               .width(96)
               .backgroundColor(Theme.CARD_STRONG)
               .borderRadius(999)
-              .onClick(() => {
-                if (this.step === 1 && this.revealStage > 0) {
-                  this.revealStage = 0;
-                }
-                this.step--;
-              })
+              .onClick(() => this.onPrevious())
           }
           Text(this.primaryLabel())
             .fontSize(16)
@@ -541,6 +902,14 @@ export struct TutorialPage {
       .padding({ left: 22, right: 22, top: 52, bottom: 24 })
     }
     .hideTitleBar(true)
+    .onShown(() => {
+      this.visible = true;
+    })
+    .onHidden(() => {
+      this.visible = false;
+      this.clearAutoSubmit();
+      this.voice?.stop();
+    })
     .linearGradient({ angle: 180, colors: [[Theme.BG_TOP, 0], [Theme.BG_BOTTOM, 1]] })
     .onBackPressed(() => {
       this.finish();

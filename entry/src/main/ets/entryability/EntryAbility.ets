@@ -6,10 +6,12 @@ const TAG: string = 'EntryAbility';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    AppStorage.setOrCreate<boolean>('appForeground', false);
     hilog.info(0x0000, TAG, 'Ability onCreate');
   }
 
   onDestroy(): void {
+    AppStorage.setOrCreate<boolean>('appForeground', false);
     hilog.info(0x0000, TAG, 'Ability onDestroy');
   }
 
@@ -38,8 +40,10 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    AppStorage.setOrCreate<boolean>('appForeground', true);
   }
 
   onBackground(): void {
+    AppStorage.setOrCreate<boolean>('appForeground', false);
   }
 }
