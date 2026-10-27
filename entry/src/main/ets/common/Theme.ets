@@ -1,35 +1,34 @@
-/**
- * Theme.ets — 全局视觉常量
- * 深夜靛蓝底 + 暖金 / 湖绿 / 星蓝三色点缀的"解密终端"风格
- */
+/** 全局视觉常量：清爽的数字棋盘。 */
 export class Theme {
-  // 背景渐变（自上而下）
-  static readonly BG_TOP: string = '#10142E';
-  static readonly BG_BOTTOM: string = '#241242';
+  static readonly BG_TOP: string = '#F5F7F6';
+  static readonly BG_BOTTOM: string = '#F5F7F6';
 
-  // 卡片与描边
-  static readonly CARD: string = 'rgba(255,255,255,0.07)';
-  static readonly CARD_STRONG: string = 'rgba(255,255,255,0.12)';
-  static readonly STROKE: string = 'rgba(255,255,255,0.14)';
+  static readonly CARD: string = '#FFFFFF';
+  static readonly CARD_STRONG: string = '#EDF1EF';
+  static readonly STROKE: string = '#DDE5E1';
+  static readonly SHEET: string = '#FFFFFF';
+  static readonly MASK: string = 'rgba(24,42,35,0.35)';
+  static readonly KEY_DISABLED: string = '#EDF0EE';
+  static readonly DISABLED_TEXT: string = '#8B9690';
 
-  // 文本
-  static readonly TEXT: string = '#F4F2FF';
-  static readonly TEXT_SUB: string = 'rgba(244,242,255,0.55)';
-  static readonly TEXT_FAINT: string = 'rgba(244,242,255,0.35)';
+  static readonly TEXT: string = '#20332E';
+  static readonly TEXT_SUB: string = '#5C6D66';
+  static readonly TEXT_FAINT: string = '#5F6D66';
 
-  // 强调色
-  static readonly GOLD: string = '#F5B441';   // 主行动色
-  static readonly GOLD_DEEP: string = '#E08A2E';
-  static readonly POSITION_EXACT: string = '#7BE0C4';
-  static readonly POSITION_EXACT_BG: string = 'rgba(123,224,196,0.12)';
-  static readonly POSITION_MISPLACED: string = '#C8B9FF';
-  static readonly POSITION_MISPLACED_BG: string = 'rgba(200,185,255,0.12)';
-  static readonly GREEN: string = '#3FCF8E';  // 成功 / 胜利
-  static readonly BLUE: string = '#5B9DF5';   // 辅助信息
-  static readonly RED: string = '#F0616D';    // 失败 / 删除
+  static readonly PRIMARY: string = '#237A63';
+  static readonly PRIMARY_DARK: string = '#1B6551';
+  static readonly PRIMARY_BG: string = '#E6F2EC';
+  static readonly ON_PRIMARY: string = '#FFFFFF';
+  static readonly POSITION_EXACT: string = '#237A63';
+  static readonly POSITION_EXACT_BG: string = '#E6F2EC';
+  static readonly POSITION_MISPLACED: string = '#7461A5';
+  static readonly POSITION_MISPLACED_BG: string = '#F0ECF7';
+  static readonly GREEN: string = '#237A63';
+  static readonly BLUE: string = '#3D6D96';
+  static readonly RED: string = '#B54F53';
+  static readonly RED_BG: string = '#F9EBEB';
 
-  // 圆角
-  static readonly R_CARD: number = 20;
-  static readonly R_TILE: number = 12;
-  static readonly R_KEY: number = 16;
+  static readonly R_CARD: number = 18;
+  static readonly R_TILE: number = 10;
+  static readonly R_KEY: number = 12;
 }

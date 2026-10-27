@@ -10,6 +10,7 @@ import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
 import { FeedbackBadge, FeedbackIcon } from '../common/GuessFeedback';
 import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
+import { BoardIcon } from '../common/BoardIcon';
 import { common } from '@kit.AbilityKit';
 
 const KEY_DELETE: string = 'DEL';
@@ -228,6 +229,14 @@ export struct GamePage {
       this.current.indexOf(key) >= 0;
   }
 
+  aiAvailable(): boolean {
+    return !this.finished && this.attemptsLeft > 1 && this.aiUsesLeft > 0;
+  }
+
+  hintAvailable(): boolean {
+    return !this.finished && this.attemptsLeft > 1 && !this.hintUsed;
+  }
+
   // ---------- UI ----------
 
   @Builder
@@ -241,24 +250,19 @@ export struct GamePage {
           .width(size)
           .height(size)
           .textAlign(TextAlign.Center)
-          .backgroundColor('rgba(255,255,255,0.08)')
+          .backgroundColor(Theme.CARD_STRONG)
           .borderRadius(Theme.R_TILE - 4)
       }, (ch: string, idx: number) => idx.toString() + '_' + ch)
     }
   }
 
   historyTileSize(guess: string): number {
-    return guess.length === 3 ? 58 : (guess.length === 4 ? 42 : 34);
-  }
-
-  historyGuessWidth(guess: string): number {
-    return this.historyTileSize(guess) * guess.length + 6 * (guess.length - 1);
+    return guess.length === 3 ? 44 : (guess.length === 4 ? 40 : 34);
   }
 
   @Builder
   Header() {
-    Row() {
-      // 返回：‹ 字形在行框内偏下，改用自绘箭头保证居中
+    Row({ space: 10 }) {
       Row() {
         Shape() {
           Path()
@@ -277,58 +281,46 @@ export struct GamePage {
       .width(44)
       .height(44)
       .backgroundColor(Theme.CARD)
-      .borderRadius(999)
+      .borderRadius(Theme.R_KEY)
       .accessibilityText('返回')
       .onClick(() => {
         this.stopTimer();
         this.pathStack.pop();
       })
-
+      Text(this.digits.toString() + ' 位数字')
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(Theme.TEXT)
       Blank()
-
-      // 计时
-      Row({ space: 4 }) {
-        Text('⏱')
-          .fontSize(14)
+      Row({ space: 5 }) {
+        BoardIcon({ kind: 'clock', iconSize: 16 })
         Text(this.timeText())
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Theme.TEXT)
-      }
-      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .backgroundColor(Theme.CARD)
-      .borderRadius(999)
-
-      Blank()
-
-      // 剩余机会
-      Row({ space: 4 }) {
-        Text('❤')
           .fontSize(13)
-          .fontColor(Theme.GOLD)
-        Text(this.attemptsLeft.toString() + ' / ' + this.maxAttempts.toString())
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Theme.TEXT)
+          .fontColor(Theme.TEXT_SUB)
       }
-      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .backgroundColor(Theme.CARD)
-      .borderRadius(999)
     }
     .width('100%')
   }
 
   @Builder
   AttemptPips() {
-    Row({ space: 6 }) {
-      ForEach(this.pipArray(), (used: boolean, idx: number) => {
-        Circle()
-          .width(8)
-          .height(8)
-          .fill(used ? Theme.GOLD : 'rgba(255,255,255,0.18)')
-      }, (used: boolean, idx: number) => idx.toString() + '_' + (used ? '1' : '0'))
+    Row() {
+      Text('剩余 ' + this.attemptsLeft.toString() + ' / ' + this.maxAttempts.toString() + ' 次机会')
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
+      Blank()
+      Row({ space: 5 }) {
+        ForEach(this.pipArray(), (used: boolean, idx: number) => {
+          Circle()
+            .width(6)
+            .height(6)
+            .fill(used ? Theme.STROKE : Theme.PRIMARY)
+        }, (used: boolean, idx: number) => idx.toString() + '_' + (used ? '1' : '0'))
+      }
+      .accessibilityLevel('no')
     }
-    .margin({ top: 10 })
+    .width('100%')
+    .margin({ top: 12 })
   }
 
   pipArray(): boolean[] {
@@ -342,27 +334,30 @@ export struct GamePage {
 
   @Builder
   CurrentInput() {
-    Column({ space: 8 }) {
-      Row({ space: 10 }) {
+    Column({ space: 10 }) {
+      Text('输入不重复的数字 · 输满自动提交')
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
+      Row({ space: 8 }) {
         ForEach(this.slotArray(), (ch: string, idx: number) => {
           Text(ch)
             .fontSize(30)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.GOLD)
-            .width(54)
-            .height(64)
+            .fontColor(Theme.PRIMARY)
+            .width(this.digits === 5 ? 48 : 54)
+            .height(60)
             .textAlign(TextAlign.Center)
-            .backgroundColor(ch === '' ? 'rgba(255,255,255,0.05)' : 'rgba(245,180,65,0.12)')
+            .backgroundColor(ch === '' ? Theme.CARD : Theme.PRIMARY_BG)
             .borderRadius(Theme.R_TILE)
             .borderWidth(1.5)
             .borderColor(idx === this.current.length && !this.finished
-              ? Theme.GOLD : Theme.STROKE)
+              ? Theme.PRIMARY : Theme.STROKE)
         }, (ch: string, idx: number) => idx.toString() + '_' + ch)
       }
       if (this.hintText !== '') {
-        Text('💡 ' + this.hintText)
+        Text('提示：' + this.hintText)
           .fontSize(13)
-          .fontColor(Theme.GOLD)
+          .fontColor(Theme.PRIMARY)
           .opacity(0.9)
       }
     }
@@ -381,10 +376,8 @@ export struct GamePage {
   History() {
     if (this.records.length === 0) {
       Column({ space: 6 }) {
-        Text('🔐')
-          .fontSize(34)
-          .opacity(0.6)
-        Text('输入一组互不相同的数字，开始破解')
+        BoardIcon({ kind: 'grid', iconSize: 30, color: Theme.STROKE })
+        Text('每一次尝试，都会带来新线索')
           .fontSize(13)
           .fontColor(Theme.TEXT_FAINT)
         Column({ space: 6 }) {
@@ -423,19 +416,19 @@ export struct GamePage {
                 this.GuessTiles(rec.guess, this.historyTileSize(rec.guess), 18)
               }
               .width('100%')
-              Row() {
+              Row({ space: 10 }) {
                 FeedbackBadge({ count: rec.a, exact: true })
-                Blank()
                 FeedbackBadge({ count: rec.b, exact: false })
               }
-              .width(this.historyGuessWidth(rec.guess))
               .margin({ left: 30 })
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
-            .padding({ left: 12, right: 12, top: 10, bottom: 4 })
+            .padding(12)
             .backgroundColor(Theme.CARD)
-            .borderRadius(Theme.R_CARD - 6)
+            .borderRadius(Theme.R_CARD - 4)
+            .borderWidth(1)
+            .borderColor(Theme.STROKE)
           }
         }, (rec: GuessRecord) => rec.index.toString())
       }
@@ -451,9 +444,8 @@ export struct GamePage {
   AiSheet() {
     Column({ space: 16 }) {
       Row({ space: 8 }) {
-        Text('🤖')
-          .fontSize(22)
-        Text('AI 军师分析')
+        BoardIcon({ kind: 'analysis', iconSize: 22, color: Theme.PRIMARY })
+        Text('AI 线索分析')
           .fontSize(19)
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
@@ -473,7 +465,7 @@ export struct GamePage {
           Text(this.ai.candidateCount.toString())
             .fontSize(22)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#7EE1FF')
+            .fontColor(Theme.PRIMARY)
           Text('组')
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
@@ -484,10 +476,10 @@ export struct GamePage {
       }
       .width('100%')
       .padding(14)
-      .backgroundColor('rgba(126,225,255,0.07)')
+      .backgroundColor(Theme.PRIMARY_BG)
       .borderRadius(Theme.R_CARD - 6)
       .borderWidth(1)
-      .borderColor('rgba(126,225,255,0.25)')
+      .borderColor(Theme.STROKE)
       .alignItems(HorizontalAlign.Start)
 
       // 数字判定盘
@@ -501,27 +493,28 @@ export struct GamePage {
             Text(ch)
               .fontSize(16)
               .fontWeight(FontWeight.Bold)
-              .fontColor(this.aiDigitStatus(ch) === 'in' ? '#0F2A1D'
-                : (this.aiDigitStatus(ch) === 'out' ? 'rgba(244,242,255,0.28)' : Theme.TEXT))
-              .width(28)
+              .fontColor(this.aiDigitStatus(ch) === 'in' ? Theme.PRIMARY
+                : (this.aiDigitStatus(ch) === 'out' ? Theme.TEXT_FAINT : Theme.TEXT))
+              .layoutWeight(1)
               .height(34)
               .textAlign(TextAlign.Center)
-              .backgroundColor(this.aiDigitStatus(ch) === 'in' ? Theme.GREEN
-                : (this.aiDigitStatus(ch) === 'out' ? 'rgba(240,97,109,0.12)' : 'rgba(255,255,255,0.07)'))
+              .backgroundColor(this.aiDigitStatus(ch) === 'in' ? Theme.PRIMARY_BG
+                : (this.aiDigitStatus(ch) === 'out' ? Theme.RED_BG : Theme.CARD_STRONG))
               .borderRadius(8)
               .decoration(this.aiDigitStatus(ch) === 'out'
                 ? { type: TextDecorationType.LineThrough, color: Theme.RED }
                 : { type: TextDecorationType.None })
           }, (ch: string) => ch)
         }
-        Row({ space: 14 }) {
-          Text('🟩 必定包含')
+        .width('100%')
+        Row({ space: 8 }) {
+          Text('绿色：必定包含')
             .fontSize(11)
             .fontColor(Theme.TEXT_FAINT)
-          Text('❌ 必定排除')
+          Text('划线：必定排除')
             .fontSize(11)
             .fontColor(Theme.TEXT_FAINT)
-          Text('⬜ 尚不确定')
+          Text('灰底：尚不确定')
             .fontSize(11)
             .fontColor(Theme.TEXT_FAINT)
         }
@@ -535,23 +528,21 @@ export struct GamePage {
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
             .alignSelf(ItemAlign.Start)
-          Row() {
-            this.GuessTiles(this.ai.bestGuess, 40, 20)
-            Blank()
-            Text('一键填入')
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#1B1030')
-              .padding({ left: 18, right: 18, top: 10, bottom: 10 })
-              .linearGradient({ angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] })
-              .borderRadius(999)
-              .onClick(() => {
-                this.showAi = false;
-                this.current = this.ai.bestGuess;
-                this.scheduleAutoSubmit();
-              })
-          }
-          .width('100%')
+          this.GuessTiles(this.ai.bestGuess, this.digits === 5 ? 34 : 40, 20)
+          Text('填入并提交')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(Theme.ON_PRIMARY)
+            .textAlign(TextAlign.Center)
+            .height(44)
+            .width('100%')
+            .backgroundColor(Theme.PRIMARY)
+            .borderRadius(Theme.R_KEY)
+            .onClick(() => {
+              this.showAi = false;
+              this.current = this.ai.bestGuess;
+              this.scheduleAutoSubmit();
+            })
         }
         .width('100%')
         .padding(14)
@@ -575,13 +566,13 @@ export struct GamePage {
         // AI 军师
         Column({ space: 2 }) {
           Text(this.aiUsesLeft > 0
-            ? '🤖 AI 军师 ×' + this.aiUsesLeft.toString()
-            : '🤖 AI 军师已下班')
+            ? 'AI 分析 · 余 ' + this.aiUsesLeft.toString() + ' 次'
+            : 'AI 分析已用完')
             .fontSize(13)
-            .fontColor(this.aiUsesLeft > 0 ? '#7EE1FF' : Theme.TEXT_FAINT)
+            .fontColor(this.aiAvailable() ? Theme.TEXT_SUB : Theme.DISABLED_TEXT)
             .width('100%')
             .textAlign(TextAlign.Center)
-          Text(this.aiUsesLeft > 0 ? '耗 1 次机会' : '本局次数已用完')
+          Text(this.aiUsesLeft <= 0 ? '本局次数已用完' : (this.attemptsLeft <= 1 ? '需保留最后一次机会' : '耗 1 次机会'))
             .fontSize(11)
             .fontColor(Theme.TEXT_SUB)
             .width('100%')
@@ -591,26 +582,27 @@ export struct GamePage {
         .constraintSize({ minHeight: 48 })
         .justifyContent(FlexAlign.Center)
         .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-        .backgroundColor(this.aiUsesLeft > 0 ? 'rgba(126,225,255,0.10)' : 'rgba(255,255,255,0.04)')
+        .backgroundColor(Theme.BG_TOP)
         .borderRadius(Theme.R_KEY)
         .borderWidth(1)
-        .borderColor(this.aiUsesLeft > 0 ? 'rgba(126,225,255,0.35)' : 'rgba(255,255,255,0.08)')
+        .borderColor(Theme.STROKE)
+        .enabled(this.aiAvailable())
         .onClick(() => this.requestAi())
         .bindSheet($$this.showAi, this.AiSheet(), {
           height: SheetSize.FIT_CONTENT,
-          backgroundColor: '#1D1838',
+          backgroundColor: Theme.SHEET,
           showClose: true,
           dragBar: true
         })
 
         // 揭示一位提示
         Column({ space: 2 }) {
-          Text(this.hintUsed ? '💡 提示已用' : '💡 提示')
+          Text(this.hintUsed ? '提示已用完' : '揭示一位')
             .fontSize(13)
-            .fontColor(this.hintUsed ? Theme.TEXT_FAINT : Theme.GOLD)
+            .fontColor(this.hintAvailable() ? Theme.TEXT_SUB : Theme.DISABLED_TEXT)
             .width('100%')
             .textAlign(TextAlign.Center)
-          Text(this.hintUsed ? '每局限 1 次' : '耗 1 次机会')
+          Text(this.hintUsed ? '每局限 1 次' : (this.attemptsLeft <= 1 ? '需保留最后一次机会' : '耗 1 次机会'))
             .fontSize(11)
             .fontColor(Theme.TEXT_SUB)
             .width('100%')
@@ -620,8 +612,11 @@ export struct GamePage {
         .constraintSize({ minHeight: 48 })
         .justifyContent(FlexAlign.Center)
         .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-        .backgroundColor(this.hintUsed ? 'rgba(255,255,255,0.04)' : 'rgba(245,180,65,0.12)')
+        .backgroundColor(Theme.BG_TOP)
         .borderRadius(Theme.R_KEY)
+        .borderWidth(1)
+        .borderColor(Theme.STROKE)
+        .enabled(this.hintAvailable())
         .onClick(() => this.requestHint())
       }
       .width('100%')
@@ -654,27 +649,25 @@ export struct GamePage {
       .accessibilityText('删除')
       .onClick(() => this.onKey(key))
     } else if (key === KEY_SUBMIT) {
-      Text('✓ 破解')
+      Text('提交')
         .fontSize(17)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.current.length === this.digits ? '#1B1030' : Theme.TEXT_FAINT)
+        .fontColor(this.current.length === this.digits ? Theme.ON_PRIMARY : Theme.DISABLED_TEXT)
         .textAlign(TextAlign.Center)
         .height(52)
         .layoutWeight(1)
-        .linearGradient(this.current.length === this.digits
-          ? { angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] }
-          : { angle: 135, colors: [['rgba(255,255,255,0.06)', 0], ['rgba(255,255,255,0.06)', 1]] })
+        .backgroundColor(this.current.length === this.digits ? Theme.PRIMARY : Theme.KEY_DISABLED)
         .borderRadius(Theme.R_KEY)
         .onClick(() => this.onKey(key))
     } else {
       Text(key)
         .fontSize(22)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.digitKeyDisabled(key) ? Theme.TEXT_FAINT : Theme.TEXT)
+        .fontColor(this.digitKeyDisabled(key) ? Theme.DISABLED_TEXT : Theme.TEXT)
         .textAlign(TextAlign.Center)
         .height(52)
         .layoutWeight(1)
-        .backgroundColor(this.digitKeyDisabled(key) ? 'rgba(255,255,255,0.03)' : Theme.CARD_STRONG)
+        .backgroundColor(this.digitKeyDisabled(key) ? Theme.KEY_DISABLED : Theme.CARD)
         .borderRadius(Theme.R_KEY)
         .enabled(!this.digitKeyDisabled(key))
         .onClick(() => this.onKey(key))
@@ -685,18 +678,17 @@ export struct GamePage {
   ResultOverlay() {
     Column() {
       Column({ space: 14 }) {
-        Text(this.win ? '🎉' : '💥')
-          .fontSize(52)
-        Text(this.win ? '破解成功！' : '解密失败')
+        BoardIcon({ kind: this.win ? 'check' : 'flag', iconSize: 44, color: this.win ? Theme.GREEN : Theme.TEXT_SUB })
+        Text(this.win ? '这组数字，想通了！' : '再差一点，下局继续')
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.win ? Theme.GREEN : Theme.RED)
+          .fontColor(Theme.TEXT)
         Text(this.win
           ? '用时 ' + this.timeText() + ' · 共 ' + this.engine.attemptsUsed.toString() + ' 次尝试'
           : '机会已用完，正确密码是：')
           .fontSize(14)
           .fontColor(Theme.TEXT_SUB)
-        this.GuessTiles(this.engine.secret, 44, 24)
+        this.GuessTiles(this.engine.secret, this.digits === 5 ? 38 : 44, 24)
         Row({ space: 12 }) {
           Text('返回主页')
             .fontSize(16)
@@ -713,11 +705,11 @@ export struct GamePage {
           Text('再来一局')
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#1B1030')
+            .fontColor(Theme.ON_PRIMARY)
             .textAlign(TextAlign.Center)
             .height(48)
             .layoutWeight(1)
-            .linearGradient({ angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] })
+            .backgroundColor(Theme.PRIMARY)
             .borderRadius(999)
             .onClick(() => this.startGame(this.digits))
         }
@@ -726,7 +718,7 @@ export struct GamePage {
       }
       .width('84%')
       .padding(24)
-      .backgroundColor('#1D1838')
+      .backgroundColor(Theme.SHEET)
       .borderRadius(24)
       .borderWidth(1)
       .borderColor(Theme.STROKE)
@@ -734,7 +726,7 @@ export struct GamePage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('rgba(8,8,20,0.72)')
+    .backgroundColor(Theme.MASK)
     .transition(TransitionEffect.OPACITY.animation({ duration: 260 }))
   }
 
@@ -745,6 +737,18 @@ export struct GamePage {
           this.Header()
           this.AttemptPips()
           this.CurrentInput()
+          Row() {
+            Text('推理记录')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.TEXT)
+            Blank()
+            Text(this.records.length > 0 ? '最新在上' : '等待第一条线索')
+              .fontSize(12)
+              .fontColor(Theme.TEXT_FAINT)
+          }
+          .width('100%')
+          .margin({ top: 22 })
           this.History()
           this.Keypad()
         }
@@ -760,7 +764,7 @@ export struct GamePage {
       .height('100%')
     }
     .hideTitleBar(true)
-    .linearGradient({ angle: 180, colors: [[Theme.BG_TOP, 0], [Theme.BG_BOTTOM, 1]] })
+    .backgroundColor(Theme.BG_TOP)
     .onReady((ctx: NavDestinationContext) => {
       const digits = ctx.pathInfo.param as number;
       this.startGame(digits > 0 ? digits : 4);

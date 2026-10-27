@@ -10,6 +10,7 @@ import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
 import { FeedbackBadge } from '../common/GuessFeedback';
 import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
+import { BoardIcon } from '../common/BoardIcon';
 import { common } from '@kit.AbilityKit';
 import { accessibility } from '@kit.AccessibilityKit';
 import { TutorialClip, tutorialClip, practiceClip } from '../model/TutorialNarration';
@@ -322,7 +323,7 @@ export struct TutorialPage {
       .width(size)
       .height(size * 1.18)
       .textAlign(TextAlign.Center)
-      .backgroundColor('rgba(255,255,255,0.08)')
+      .backgroundColor(Theme.CARD_STRONG)
       .borderRadius(Theme.R_TILE)
       .borderWidth(2)
       .borderColor(borderClr)
@@ -341,7 +342,7 @@ export struct TutorialPage {
           .width(tileSize)
           .height(tileSize)
           .textAlign(TextAlign.Center)
-          .backgroundColor('rgba(255,255,255,0.08)')
+          .backgroundColor(Theme.CARD_STRONG)
           .borderRadius(Theme.R_TILE - 4)
       }, (ch: string, idx: number) => idx.toString() + '_' + ch)
     }
@@ -367,7 +368,7 @@ export struct TutorialPage {
           .width(this.step === i ? 18 : 7)
           .height(7)
           .borderRadius(999)
-          .backgroundColor(this.step === i ? Theme.GOLD : 'rgba(255,255,255,0.2)')
+          .backgroundColor(this.step === i ? Theme.PRIMARY : Theme.STROKE)
           .animation({ duration: 200, curve: Curve.EaseOut })
       }, (i: number) => i.toString())
     }
@@ -380,7 +381,7 @@ export struct TutorialPage {
         Text('语音教练')
           .fontSize(14)
           .fontWeight(FontWeight.Medium)
-          .fontColor(Theme.GOLD)
+          .fontColor(Theme.PRIMARY)
         Blank()
         if (this.voiceChoiceMade) {
           Button(this.voiceEnabled ? '关闭语音' : '开启语音', { type: ButtonType.Normal })
@@ -406,8 +407,8 @@ export struct TutorialPage {
         Row({ space: 8 }) {
           Button('边听边学', { type: ButtonType.Normal })
             .fontSize(14)
-            .fontColor('#1B1030')
-            .backgroundColor(Theme.GOLD)
+            .fontColor(Theme.ON_PRIMARY)
+            .backgroundColor(Theme.PRIMARY)
             .borderRadius(12)
             .height(44)
             .layoutWeight(1)
@@ -460,11 +461,11 @@ export struct TutorialPage {
     Column({ space: 22 }) {
       Text('第 1 步 · 你的目标')
         .fontSize(13)
-        .fontColor(Theme.GOLD)
+        .fontColor(Theme.PRIMARY)
         .letterSpacing(2)
       Row({ space: 10 }) {
         ForEach(['?', '?', '?', '?'], (ch: string, idx: number) => {
-          this.Tile(ch, 52, 26, Theme.GOLD, Theme.STROKE, 1)
+          this.Tile(ch, 52, 26, Theme.PRIMARY, Theme.STROKE, 1)
         }, (ch: string, idx: number) => idx.toString())
       }
       Text('系统在暗中记下了一组数字密码\n各位数字互不相同，首位也可能是 0')
@@ -496,7 +497,7 @@ export struct TutorialPage {
     Column({ space: 16 }) {
       Text('第 2 步 · 看懂反馈（最关键！）')
         .fontSize(13)
-        .fontColor(Theme.GOLD)
+        .fontColor(Theme.PRIMARY)
         .letterSpacing(2)
 
       Column({ space: 6 }) {
@@ -510,7 +511,7 @@ export struct TutorialPage {
         }
       }
 
-      Text('⬇ 你猜了')
+      Text('你的猜测')
         .fontSize(12)
         .fontColor(Theme.TEXT_FAINT)
 
@@ -569,7 +570,7 @@ export struct TutorialPage {
     Column({ space: 14 }) {
       Text('第 3 步 · 跟着线索猜')
         .fontSize(13)
-        .fontColor(Theme.GOLD)
+        .fontColor(Theme.PRIMARY)
         .letterSpacing(2)
       Text('先学一个方法：两个数量都是 0，就换一组数字')
         .fontSize(14)
@@ -604,14 +605,14 @@ export struct TutorialPage {
       Column({ space: 10 }) {
         Text('小检查 · 另一局，答案未知')
           .fontSize(14)
-          .fontColor(Theme.GOLD)
+          .fontColor(Theme.PRIMARY)
         Text('只看到「正位 1」，能知道是哪一位正确吗？')
           .fontSize(15)
           .fontColor(Theme.TEXT)
           .lineHeight(23)
         Button('能，就是第一位', { type: ButtonType.Normal })
           .fontSize(14)
-          .fontColor(this.quizAnswer === 0 ? Theme.GOLD : Theme.TEXT)
+          .fontColor(this.quizAnswer === 0 ? Theme.PRIMARY : Theme.TEXT)
           .width('100%')
           .height(48)
           .backgroundColor(Theme.CARD_STRONG)
@@ -628,7 +629,7 @@ export struct TutorialPage {
         if (this.quizAnswer >= 0) {
           Text(tutorialClip(this.quizAnswer === 1 ? 'quiz_correct' : 'quiz_retry').text)
             .fontSize(13)
-            .fontColor(this.quizAnswer === 1 ? Theme.GREEN : Theme.GOLD)
+            .fontColor(this.quizAnswer === 1 ? Theme.GREEN : Theme.PRIMARY)
             .lineHeight(21)
         }
         Text('可以随时下一步，不必答对才能继续。')
@@ -650,13 +651,12 @@ export struct TutorialPage {
     Column({ space: 10 }) {
       Text('第 4 步 · 亲手试一局（3 位 · 不限次数）')
         .fontSize(13)
-        .fontColor(Theme.GOLD)
+        .fontColor(Theme.PRIMARY)
         .letterSpacing(2)
 
       // 教练气泡
       Row({ space: 8 }) {
-        Text('🧑‍🏫')
-          .fontSize(18)
+        BoardIcon({ kind: 'hint', iconSize: 20, color: Theme.PRIMARY })
         Text(this.coach)
           .fontSize(13)
           .fontColor(this.pWon ? Theme.GREEN : Theme.TEXT)
@@ -665,7 +665,7 @@ export struct TutorialPage {
       }
       .width('100%')
       .padding(12)
-      .backgroundColor(this.pWon ? 'rgba(63,207,142,0.12)' : Theme.CARD)
+      .backgroundColor(this.pWon ? Theme.PRIMARY_BG : Theme.CARD)
       .borderRadius(Theme.R_CARD - 6)
       .borderWidth(1)
       .borderColor(this.pWon ? Theme.GREEN : Theme.STROKE)
@@ -677,14 +677,14 @@ export struct TutorialPage {
           Text(i < this.pCurrent.length ? this.pCurrent.charAt(i) : '')
             .fontSize(22)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.GOLD)
+            .fontColor(Theme.PRIMARY)
             .width(44)
             .height(50)
             .textAlign(TextAlign.Center)
-            .backgroundColor('rgba(255,255,255,0.05)')
+            .backgroundColor(i === this.pCurrent.length && !this.pWon ? Theme.PRIMARY_BG : Theme.CARD_STRONG)
             .borderRadius(Theme.R_TILE - 2)
             .borderWidth(1.5)
-            .borderColor(i === this.pCurrent.length && !this.pWon ? Theme.GOLD : Theme.STROKE)
+            .borderColor(i === this.pCurrent.length && !this.pWon ? Theme.PRIMARY : Theme.STROKE)
         }, (i: number) => i.toString())
       }
 
@@ -720,37 +720,35 @@ export struct TutorialPage {
             ForEach(row, (key: string) => {
               if (key === KEY_DELETE) {
                 Row() {
-                  DeleteKeyIcon({ iconSize: 20, color: this.pCurrent.length > 0 ? Theme.RED : Theme.TEXT_FAINT })
+                  DeleteKeyIcon({ iconSize: 20, color: this.pCurrent.length > 0 ? Theme.RED : Theme.DISABLED_TEXT })
                 }
                 .justifyContent(FlexAlign.Center)
                 .height(42)
                 .layoutWeight(1)
-                .backgroundColor(Theme.CARD)
+                .backgroundColor(this.pCurrent.length > 0 ? Theme.RED_BG : Theme.KEY_DISABLED)
                 .borderRadius(12)
                 .accessibilityText('删除')
                 .onClick(() => this.onPracticeKey(key))
               } else if (key === KEY_SUBMIT) {
-                Text('✓ 破解')
+                Text('破解')
                   .fontSize(14)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor(this.pCurrent.length === 3 ? '#1B1030' : Theme.TEXT_FAINT)
+                  .fontColor(this.pCurrent.length === 3 ? Theme.ON_PRIMARY : Theme.DISABLED_TEXT)
                   .textAlign(TextAlign.Center)
                   .height(42)
                   .layoutWeight(1)
-                  .linearGradient(this.pCurrent.length === 3
-                    ? { angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] }
-                    : { angle: 135, colors: [['rgba(255,255,255,0.06)', 0], ['rgba(255,255,255,0.06)', 1]] })
+                  .backgroundColor(this.pCurrent.length === 3 ? Theme.PRIMARY : Theme.KEY_DISABLED)
                   .borderRadius(12)
                   .onClick(() => this.onPracticeKey(key))
               } else {
                 Text(key)
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
-                  .fontColor(this.practiceKeyDisabled(key) ? Theme.TEXT_FAINT : Theme.TEXT)
+                  .fontColor(this.practiceKeyDisabled(key) ? Theme.DISABLED_TEXT : Theme.TEXT)
                   .textAlign(TextAlign.Center)
                   .height(42)
                   .layoutWeight(1)
-                  .backgroundColor(this.practiceKeyDisabled(key) ? 'rgba(255,255,255,0.03)' : Theme.CARD_STRONG)
+                  .backgroundColor(this.practiceKeyDisabled(key) ? Theme.KEY_DISABLED : Theme.CARD)
                   .borderRadius(12)
                   .enabled(!this.practiceKeyDisabled(key))
                   .onClick(() => this.onPracticeKey(key))
@@ -771,7 +769,7 @@ export struct TutorialPage {
       Text('准备好正式挑战了吗？')
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
-        .fontColor(Theme.GOLD)
+        .fontColor(Theme.PRIMARY)
       Text('入门 · 3 位 / 6 次机会\n经典 · 4 位 / 8 次机会\n大师 · 5 位 / 10 次机会')
         .fontSize(17)
         .fontColor(Theme.TEXT)
@@ -886,11 +884,11 @@ export struct TutorialPage {
           Text(this.primaryLabel())
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#1B1030')
+            .fontColor(Theme.ON_PRIMARY)
             .textAlign(TextAlign.Center)
             .height(50)
             .layoutWeight(1)
-            .linearGradient({ angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] })
+            .backgroundColor(Theme.PRIMARY)
             .borderRadius(999)
             .onClick(() => this.onPrimary())
         }
@@ -910,7 +908,7 @@ export struct TutorialPage {
       this.clearAutoSubmit();
       this.voice?.stop();
     })
-    .linearGradient({ angle: 180, colors: [[Theme.BG_TOP, 0], [Theme.BG_BOTTOM, 1]] })
+    .backgroundColor(Theme.BG_TOP)
     .onBackPressed(() => {
       this.finish();
       return true;

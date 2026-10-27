@@ -309,6 +309,58 @@ function calledNames(node) {
 }
 
 
+test('TutorialPage light-theme contract: only current semantic colors and vector decorations', () => {
+  const themeSource = fs.readFileSync(path.join(root, 'entry/src/main/ets/common/Theme.ets'), 'utf8');
+  const themeNames = new Set([...themeSource.matchAll(/static readonly (\w+):/g)].map(match => match[1]));
+  for (const [, name] of pageSource.matchAll(/Theme\.(\w+)/g)) {
+    assert.ok(themeNames.has(name), `Tutorial references missing Theme.${name}`);
+  }
+  assert.doesNotMatch(pageSource, /Theme\.GOLD(?:_DEEP)?\b/);
+  assert.doesNotMatch(pageSource, /rgba\(|#[0-9a-f]{6}\b|\.linearGradient\(/i,
+    'Tutorial surfaces and buttons must use solid semantic theme colors');
+  assert.doesNotMatch(pageSource, /\p{Extended_Pictographic}|\uFE0F|\u200D/u,
+    'Use plain text or vectors instead of emoji decorations');
+  assert.match(pageSource, /import \{ BoardIcon \} from '\.\.\/common\/BoardIcon'/);
+  assert.match(pageSource, /BoardIcon\(\{ kind: 'hint', iconSize: 20, color: Theme\.PRIMARY \}\)/);
+});
+
+test('TutorialPage light-theme contract: input, inactive keys and primary actions stay readable', () => {
+  assert.match(pageSource, /\.backgroundColor\(Theme\.CARD_STRONG\)/);
+  assert.match(pageSource, /this\.step === i \? Theme\.PRIMARY : Theme\.STROKE/);
+  assert.match(pageSource, /i === this\.pCurrent\.length && !this\.pWon \? Theme\.PRIMARY_BG : Theme\.CARD_STRONG/);
+  assert.match(pageSource, /this\.practiceKeyDisabled\(key\) \? Theme\.KEY_DISABLED : Theme\.CARD/);
+  assert.match(pageSource, /this\.practiceKeyDisabled\(key\) \? Theme\.DISABLED_TEXT : Theme\.TEXT/);
+  assert.match(pageSource, /this\.pCurrent\.length === 3 \? Theme\.ON_PRIMARY : Theme\.DISABLED_TEXT/);
+  assert.match(pageSource, /this\.pCurrent\.length === 3 \? Theme\.PRIMARY : Theme\.KEY_DISABLED/);
+  for (const label of ["Button('边听边学'", 'Text(this.primaryLabel())']) {
+    const start = pageSource.indexOf(label);
+    assert.ok(start >= 0, `Missing primary action: ${label}`);
+    const action = pageSource.slice(start, pageSource.indexOf('.onClick(', start));
+    assert.match(action, /\.fontColor\(Theme\.ON_PRIMARY\)/);
+    assert.match(action, /\.backgroundColor\(Theme\.PRIMARY\)/);
+  }
+});
+
+test('startup light-theme contract: launch background and both system bars use the same palette', () => {
+  const ability = fs.readFileSync(path.join(root, 'entry/src/main/ets/entryability/EntryAbility.ets'), 'utf8');
+  const colors = JSON.parse(fs.readFileSync(path.join(root, 'entry/src/main/resources/base/element/color.json'), 'utf8'));
+  const theme = fs.readFileSync(path.join(root, 'entry/src/main/ets/common/Theme.ets'), 'utf8');
+  const themeColor = name => {
+    const match = new RegExp(`static readonly ${name}: string = '([^']+)'`).exec(theme);
+    assert.ok(match, `Missing theme color: ${name}`);
+    return match[1];
+  };
+  assert.equal(colors.color.find(color => color.name === 'start_window_background')?.value, themeColor('BG_TOP'));
+  assert.equal(themeColor('BG_TOP'), '#F5F7F6');
+  assert.equal(themeColor('BG_BOTTOM'), '#F5F7F6');
+  assert.equal(themeColor('TEXT'), '#20332E');
+  assert.match(ability, /setWindowLayoutFullScreen\(true\)/);
+  for (const [property, token] of [
+    ['statusBarColor', 'BG_TOP'], ['statusBarContentColor', 'TEXT'],
+    ['navigationBarColor', 'BG_BOTTOM'], ['navigationBarContentColor', 'TEXT'],
+  ]) assert.match(ability, new RegExp(`${property}: Theme\\.${token}\\b`));
+});
+
 test('TutorialPage static contract: playback entry points guard screen reader and foreground', () => {
   for (const name of ['selectClip', 'togglePlayback', 'replayVoice']) {
     const body = pageMethod(name);

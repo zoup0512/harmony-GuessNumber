@@ -1,13 +1,10 @@
-/**
- * Index.ets — 主页
- * 标题区（正位 / 错位主视觉）→ 战绩卡 → 难度选择 → 开始按钮 → 玩法规则（半模态）
- */
 import { GamePage } from '../views/GamePage';
 import { TutorialPage } from '../views/TutorialPage';
 import { Stats, StatsStore } from '../model/StatsStore';
 import { DIFFICULTIES, Difficulty } from '../model/GameEngine';
 import { Theme } from '../common/Theme';
 import { FeedbackIcon, GuessFeedback } from '../common/GuessFeedback';
+import { BoardIcon } from '../common/BoardIcon';
 import { common } from '@kit.AbilityKit';
 
 @Entry
@@ -30,12 +27,10 @@ struct Index {
     });
   }
 
-  /** 首次启动自动进入新手引导 */
   checkFirstLaunch(): void {
     const ctx = this.getUIContext().getHostContext() as common.Context;
     StatsStore.isTutorialDone(ctx).then((done: boolean) => {
       if (!done) {
-        // 稍作延迟，确保 Navigation 已就绪
         setTimeout(() => {
           this.pathStack.pushPathByName('tutorial', '', () => {
             this.loadStats();
@@ -63,38 +58,30 @@ struct Index {
 
   @Builder
   HeroTiles() {
-    Row({ space: 10 }) {
-      this.HeroTile(true)
-      this.HeroTile(false)
+    Row({ space: 8 }) {
+      ForEach(['1', '2', '3', '4'], (digit: string) => {
+        Text(digit)
+          .fontSize(25)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.TEXT)
+          .width(48)
+          .height(52)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(Theme.CARD)
+          .borderRadius(Theme.R_TILE)
+          .borderWidth(1)
+          .borderColor(Theme.STROKE)
+      }, (digit: string) => digit)
     }
-  }
-
-  @Builder
-  HeroTile(exact: boolean) {
-    Column({ space: 8 }) {
-      FeedbackIcon({ exact: exact, iconSize: 24 })
-      Text(exact ? '正位' : '错位')
-        .fontSize(13)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(Theme.TEXT)
-    }
-    .width(88)
-    .height(84)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(exact ? Theme.POSITION_EXACT_BG : Theme.POSITION_MISPLACED_BG)
-    .borderRadius(Theme.R_TILE)
-    .borderWidth(1)
-    .borderColor(Theme.STROKE)
-    .rotate({ angle: exact ? -3 : 3 })
   }
 
   @Builder
   StatCell(value: string, label: string) {
     Column({ space: 4 }) {
       Text(value)
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(Theme.GOLD)
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(Theme.TEXT)
       Text(label)
         .fontSize(12)
         .fontColor(Theme.TEXT_SUB)
@@ -125,30 +112,32 @@ struct Index {
   VDivider() {
     Column()
       .width(1)
-      .height(28)
+      .height(26)
       .backgroundColor(Theme.STROKE)
   }
 
   @Builder
   DifficultyCard(d: Difficulty) {
-    Column({ space: 4 }) {
+    Column({ space: 7 }) {
       Text(d.name)
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.selectedDigits === d.digits ? '#1B1030' : Theme.TEXT)
-      Text(d.desc)
-        .fontSize(11)
-        .fontColor(this.selectedDigits === d.digits ? 'rgba(27,16,48,0.75)' : Theme.TEXT_SUB)
-        .textAlign(TextAlign.Center)
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.selectedDigits === d.digits ? Theme.PRIMARY : Theme.TEXT)
+      Text(d.digits.toString() + ' 位数字')
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
+      Text(d.attempts.toString() + ' 次机会')
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
     }
     .layoutWeight(1)
-    .padding({ top: 14, bottom: 14, left: 4, right: 4 })
-    .linearGradient(this.selectedDigits === d.digits
-      ? { angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] }
-      : { angle: 135, colors: [[Theme.CARD, 0], [Theme.CARD, 1]] })
+    .padding({ top: 16, bottom: 16, left: 4, right: 4 })
+    .backgroundColor(this.selectedDigits === d.digits ? Theme.PRIMARY_BG : Theme.CARD)
     .borderRadius(Theme.R_CARD - 4)
-    .borderWidth(1)
-    .borderColor(this.selectedDigits === d.digits ? 'rgba(0,0,0,0)' : Theme.STROKE)
+    .borderWidth(this.selectedDigits === d.digits ? 2 : 1)
+    .borderColor(this.selectedDigits === d.digits ? Theme.PRIMARY : Theme.STROKE)
+    .accessibilityText(d.name + '，' + d.digits.toString() + ' 位数字，' + d.attempts.toString() + ' 次机会' +
+      (this.selectedDigits === d.digits ? '，已选中' : ''))
     .animation({ duration: 180, curve: Curve.EaseOut })
     .onClick(() => {
       this.selectedDigits = d.digits;
@@ -163,8 +152,8 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .fontColor(Theme.TEXT)
       Scroll() {
-        Column({ space: 10 }) {
-          this.RuleLine('🎯', '系统随机生成一组各位互不相同的数字（首位可以为 0），你要在限定次数内破解它。')
+        Column({ space: 12 }) {
+          this.RuleLine('grid', '系统随机生成一组各位互不相同的数字（首位可以为 0），你要在限定次数内猜中它。')
           this.FeedbackRule(true, '正位：数字对、位置也对。例如答案 5234，猜 5346，数字 5 位置正确，正位 1 个。')
           this.FeedbackRule(false, '错位：数字对、位置不对。上例中 3 和 4 在答案里，但位置不对，错位 2 个。')
           GuessFeedback({ exact: 1, misplaced: 2 })
@@ -172,10 +161,10 @@ struct Index {
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)
             .lineHeight(20)
-          this.RuleLine('⌨️', '键盘会自动禁用已输入的数字，杜绝重复；数字输满后自动提交破解，无需手动确认。')
-          this.RuleLine('💡', '每局可用一次提示，随机揭示一位密码，但会消耗 1 次机会，慎用。')
-          this.RuleLine('🤖', 'AI 军师每局可召唤 2 次（每次消耗 1 次机会）：它只根据你已有的线索推理，告诉你剩余可能、数字判定，并推荐信息量最大的下一猜。')
-          this.RuleLine('🏆', '猜中即胜利；用完机会则失败并公布答案。次数越少、用时越短，战绩越好。')
+          this.RuleLine('keyboard', '键盘会自动禁用已输入的数字，避免重复；数字输满后自动提交，无需手动确认。')
+          this.RuleLine('hint', '每局可用一次提示，随机揭示一位数字，但会消耗 1 次机会。')
+          this.RuleLine('analysis', 'AI 分析每局可用 2 次（每次消耗 1 次机会）：只根据已有线索推理，告诉你剩余可能、数字判定，并推荐下一猜。')
+          this.RuleLine('flag', '猜中即胜利；用完机会后公布答案。计时仅记录用时，不会超时失败。')
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -185,13 +174,13 @@ struct Index {
       .scrollBar(BarState.Auto)
       Text('知道了')
         .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1B1030')
+        .fontWeight(FontWeight.Medium)
+        .fontColor(Theme.ON_PRIMARY)
         .textAlign(TextAlign.Center)
         .width('100%')
-        .height(46)
-        .linearGradient({ angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] })
-        .borderRadius(999)
+        .height(48)
+        .backgroundColor(Theme.PRIMARY)
+        .borderRadius(Theme.R_KEY)
         .onClick(() => {
           this.showRules = false;
         })
@@ -216,8 +205,7 @@ struct Index {
   @Builder
   RuleLine(icon: string, text: string) {
     Row({ space: 10 }) {
-      Text(icon)
-        .fontSize(16)
+      BoardIcon({ kind: icon, iconSize: 18 })
       Text(text)
         .fontSize(14)
         .fontColor(Theme.TEXT_SUB)
@@ -230,54 +218,72 @@ struct Index {
   build() {
     Navigation(this.pathStack) {
       Column() {
-        Blank()
-          .height(30)
+        Scroll() {
+          Column() {
+            this.HeroTiles()
+            Text('数字解密')
+              .fontSize(30)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Theme.TEXT)
+              .margin({ top: 18 })
+            Text('读懂线索，享受想通的那一刻')
+              .fontSize(14)
+              .fontColor(Theme.TEXT_SUB)
+              .margin({ top: 8 })
+            Row({ space: 18 }) {
+              Row({ space: 5 }) {
+                FeedbackIcon({ exact: true, iconSize: 16 })
+                Text('数字与位置都对')
+                  .fontSize(12)
+                  .fontColor(Theme.TEXT_SUB)
+              }
+              Row({ space: 5 }) {
+                FeedbackIcon({ exact: false, iconSize: 16 })
+                Text('数字对，位置不对')
+                  .fontSize(12)
+                  .fontColor(Theme.TEXT_SUB)
+              }
+            }
+            .margin({ top: 18, bottom: 28 })
 
-        this.HeroTiles()
+            Text('选择难度')
+              .fontSize(15)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.TEXT)
+              .alignSelf(ItemAlign.Start)
+              .margin({ bottom: 12 })
+            Row({ space: 10 }) {
+              ForEach(DIFFICULTIES, (d: Difficulty) => {
+                this.DifficultyCard(d)
+              }, (d: Difficulty) => d.digits.toString())
+            }
+            .width('100%')
 
-        Text('数字解密')
-          .fontSize(34)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Theme.TEXT)
-          .margin({ top: 20 })
-        Text('经典猜数字 · 读懂线索，破解密码')
-          .fontSize(14)
-          .fontColor(Theme.TEXT_SUB)
-          .margin({ top: 6 })
-
-        Blank()
-          .height(34)
-
-        this.StatsCard()
-
-        Text('选择难度')
-          .fontSize(14)
-          .fontColor(Theme.TEXT_SUB)
-          .alignSelf(ItemAlign.Start)
-          .margin({ top: 26, bottom: 10 })
-
-        Row({ space: 10 }) {
-          ForEach(DIFFICULTIES, (d: Difficulty) => {
-            this.DifficultyCard(d)
-          }, (d: Difficulty) => d.digits.toString())
+            Text('我的记录')
+              .fontSize(13)
+              .fontColor(Theme.TEXT_SUB)
+              .alignSelf(ItemAlign.Start)
+              .margin({ top: 24, bottom: 10 })
+            this.StatsCard()
+          }
+          .width('100%')
+          .padding({ top: 20, bottom: 20 })
         }
+        .layoutWeight(1)
         .width('100%')
+        .scrollBar(BarState.Off)
 
-        Blank()
-
-        Text('开始破解')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1B1030')
+        Text('开始一局')
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.ON_PRIMARY)
           .textAlign(TextAlign.Center)
           .width('100%')
-          .height(56)
-          .linearGradient({ angle: 135, colors: [[Theme.GOLD, 0], [Theme.GOLD_DEEP, 1]] })
-          .borderRadius(999)
-          .shadow({ radius: 24, color: 'rgba(245,180,65,0.35)', offsetY: 6 })
+          .height(54)
+          .backgroundColor(Theme.PRIMARY)
+          .borderRadius(Theme.R_KEY)
           .onClick(() => {
             this.pathStack.pushPathByName('game', this.selectedDigits, () => {
-              // 从对局页返回时刷新战绩
               this.loadStats();
             });
           })
@@ -286,13 +292,13 @@ struct Index {
           Text('玩法规则')
             .fontSize(14)
             .fontColor(Theme.TEXT_SUB)
-            .padding(12)
+            .padding(14)
             .onClick(() => {
               this.showRules = true;
             })
             .bindSheet($$this.showRules, this.RulesSheet(), {
               height: SheetSize.FIT_CONTENT,
-              backgroundColor: '#1D1838',
+              backgroundColor: Theme.SHEET,
               showClose: true,
               dragBar: true
             })
@@ -301,23 +307,22 @@ struct Index {
             .fontColor(Theme.TEXT_FAINT)
           Text('新手教学')
             .fontSize(14)
-            .fontColor(Theme.GOLD)
-            .opacity(0.85)
-            .padding(12)
+            .fontColor(Theme.PRIMARY)
+            .padding(14)
             .onClick(() => {
               this.pathStack.pushPathByName('tutorial', '');
             })
         }
-        .margin({ top: 6, bottom: 10 })
+        .margin({ top: 4 })
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 24, right: 24, top: 40, bottom: 20 })
+      .padding({ left: 24, right: 24, top: 48, bottom: 20 })
     }
     .mode(NavigationMode.Stack)
     .navDestination(this.PagesMap)
     .hideTitleBar(true)
-    .linearGradient({ angle: 180, colors: [[Theme.BG_TOP, 0], [Theme.BG_BOTTOM, 1]] })
+    .backgroundColor(Theme.BG_TOP)
     .width('100%')
     .height('100%')
   }
