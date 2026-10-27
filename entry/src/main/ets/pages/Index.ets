@@ -12,8 +12,12 @@ import { common } from '@kit.AbilityKit';
 struct Index {
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack();
   @State stats: Stats = new Stats();
+  @State legacyStats: Stats = new Stats();
+  @State statsLoading: boolean = true;
+  @State statsError: boolean = false;
   @State selectedDigits: number = 4;
   @State showRules: boolean = false;
+  private statsRequest: number = 0;
 
   aboutToAppear(): void {
     this.loadStats();
@@ -22,9 +26,37 @@ struct Index {
 
   loadStats(): void {
     const ctx = this.getUIContext().getHostContext() as common.Context;
-    StatsStore.load(ctx).then((s: Stats) => {
-      this.stats = s;
+    const digits = this.selectedDigits;
+    const request = ++this.statsRequest;
+    this.statsLoading = true;
+    this.statsError = false;
+    StatsStore.load(ctx, digits).then((s: Stats) => {
+      if (request === this.statsRequest && digits === this.selectedDigits) {
+        this.stats = s;
+        this.statsLoading = false;
+      }
+    }).catch(() => {
+      if (request === this.statsRequest && digits === this.selectedDigits) {
+        this.statsLoading = false;
+        this.statsError = true;
+      }
     });
+    StatsStore.loadLegacy(ctx).then((s: Stats) => {
+      this.legacyStats = s;
+    }).catch(() => {});
+  }
+
+  statsValue(value: number): string {
+    return this.statsLoading || this.statsError ? '--' : value.toString();
+  }
+
+  difficultyName(): string {
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      if (DIFFICULTIES[i].digits === this.selectedDigits) {
+        return DIFFICULTIES[i].name;
+      }
+    }
+    return '';
   }
 
   checkFirstLaunch(): void {
@@ -40,8 +72,8 @@ struct Index {
     });
   }
 
-  winRateText(): string {
-    if (this.stats.played === 0) {
+  solveRateText(): string {
+    if (this.statsLoading || this.statsError || this.stats.played === 0) {
       return '--';
     }
     return Math.round(this.stats.wins * 100 / this.stats.played).toString() + '%';
@@ -91,17 +123,31 @@ struct Index {
 
   @Builder
   StatsCard() {
-    Row() {
-      this.StatCell(this.stats.played.toString(), '对局')
-      this.VDivider()
-      this.StatCell(this.winRateText(), '胜率')
-      this.VDivider()
-      this.StatCell(this.stats.best === 0 ? '--' : this.stats.best.toString() + ' 次', '最佳')
-      this.VDivider()
-      this.StatCell(this.stats.streak.toString(), '连胜')
+    Column({ space: 14 }) {
+      Row() {
+        this.StatCell(this.statsValue(this.stats.played), '挑战局数')
+        this.VDivider()
+        this.StatCell(this.solveRateText(), '破解率')
+        this.VDivider()
+        this.StatCell(this.statsValue(this.stats.wins), '累计破解')
+      }
+      .width('100%')
+      Divider().color(Theme.STROKE)
+      Row() {
+        Text('最佳破解')
+          .fontSize(12)
+          .fontColor(Theme.TEXT_SUB)
+        Blank()
+        Text(this.statsLoading || this.statsError || this.stats.best === 0
+          ? '--' : this.stats.best.toString() + ' 次机会')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.TEXT)
+      }
+      .width('100%')
     }
     .width('100%')
-    .padding({ top: 16, bottom: 16 })
+    .padding(16)
     .backgroundColor(Theme.CARD)
     .borderRadius(Theme.R_CARD)
     .borderWidth(1)
@@ -141,6 +187,7 @@ struct Index {
     .animation({ duration: 180, curve: Curve.EaseOut })
     .onClick(() => {
       this.selectedDigits = d.digits;
+      this.loadStats();
     })
   }
 
@@ -164,7 +211,9 @@ struct Index {
           this.RuleLine('keyboard', '键盘会自动禁用已输入的数字，避免重复；数字输满后自动提交，无需手动确认。')
           this.RuleLine('hint', '每局可用一次提示，随机揭示一位数字，但会消耗 1 次机会。')
           this.RuleLine('analysis', 'AI 分析每局可用 2 次（每次消耗 1 次机会）：只根据已有线索推理，告诉你剩余可能、数字判定，并推荐下一猜。')
-          this.RuleLine('flag', '猜中即胜利；用完机会后公布答案。计时仅记录用时，不会超时失败。')
+          this.RuleLine('flag', '猜中即破解成功；用完机会后公布答案。计时仅记录用时，不会超时失败。')
+          this.RuleLine('grid', '我的记录按难度分别统计：挑战局数为已结束的正式挑战数，破解率为其中成功破解的比例，累计破解为成功次数。中途退出和教学练习不计。')
+          this.RuleLine('hint', '最佳破解为成功时消耗的最少机会，包含猜测、提示和 AI 分析。')
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -259,12 +308,39 @@ struct Index {
             }
             .width('100%')
 
-            Text('我的记录')
+            Text('我的记录 · ' + this.difficultyName())
               .fontSize(13)
               .fontColor(Theme.TEXT_SUB)
               .alignSelf(ItemAlign.Start)
               .margin({ top: 24, bottom: 10 })
             this.StatsCard()
+            if (this.statsError) {
+              Text('记录读取失败，点击重试')
+                .fontSize(12)
+                .fontColor(Theme.PRIMARY)
+                .margin({ top: 10 })
+                .onClick(() => this.loadStats())
+            } else if (this.statsLoading) {
+              Text('正在读取记录…')
+                .fontSize(12)
+                .fontColor(Theme.TEXT_SUB)
+                .margin({ top: 10 })
+            }
+            Text('仅统计已结束的正式挑战；中途退出和教学练习不计。最佳包含猜测、提示和 AI 消耗的机会。')
+              .fontSize(12)
+              .fontColor(Theme.TEXT_SUB)
+              .lineHeight(19)
+              .width('100%')
+              .margin({ top: 10 })
+            if (this.legacyStats.played > 0) {
+              Text('旧版历史汇总：挑战 ' + this.legacyStats.played.toString() + ' 局 · 破解 ' +
+                this.legacyStats.wins.toString() + ' 局\n历史记录已保留，因未记录难度，不纳入以上分难度统计。')
+                .fontSize(12)
+                .fontColor(Theme.TEXT_SUB)
+                .lineHeight(19)
+                .width('100%')
+                .margin({ top: 10 })
+            }
           }
           .width('100%')
           .padding({ top: 20, bottom: 20 })

@@ -36,6 +36,7 @@ export struct GamePage {
   @State aiUsesLeft: number = AI_MAX_USES;
   @State ai: AiAdvice = new AiAdvice();
   private timerId: number = -1;
+  private autoSubmitId: number = -1;
   private keyRows: string[][] = [
     ['1', '2', '3', '4'],
     ['5', '6', '7', '8'],
@@ -47,17 +48,17 @@ export struct GamePage {
   }
 
   startGame(digits: number): void {
-    let attempts = 8;
+    let difficulty: Difficulty = DIFFICULTIES[1];
     for (let i = 0; i < DIFFICULTIES.length; i++) {
-      const d: Difficulty = DIFFICULTIES[i];
-      if (d.digits === digits) {
-        attempts = d.attempts;
+      if (DIFFICULTIES[i].digits === digits) {
+        difficulty = DIFFICULTIES[i];
         break;
       }
     }
-    this.digits = digits;
+    this.digits = difficulty.digits;
+    const attempts = difficulty.attempts;
     this.maxAttempts = attempts;
-    this.engine.start(digits, attempts);
+    this.engine.start(this.digits, attempts);
     this.records = [];
     this.current = '';
     this.attemptsLeft = attempts;
@@ -79,6 +80,7 @@ export struct GamePage {
   }
 
   stopTimer(): void {
+    this.clearAutoSubmit();
     if (this.timerId >= 0) {
       clearInterval(this.timerId);
       this.timerId = -1;
@@ -119,14 +121,24 @@ export struct GamePage {
 
   /** 延时 280ms 自动提交：让最后一位瓷砖先完成渲染，也给误触留出删除窗口 */
   scheduleAutoSubmit(): void {
-    setTimeout(() => {
+    this.clearAutoSubmit();
+    this.autoSubmitId = setTimeout(() => {
+      this.autoSubmitId = -1;
       if (!this.finished && this.current.length === this.digits) {
         this.submit();
       }
     }, 280);
   }
 
+  clearAutoSubmit(): void {
+    if (this.autoSubmitId >= 0) {
+      clearTimeout(this.autoSubmitId);
+      this.autoSubmitId = -1;
+    }
+  }
+
   submit(): void {
+    this.clearAutoSubmit();
     if (this.current.length !== this.digits || this.finished) {
       return;
     }
@@ -219,7 +231,12 @@ export struct GamePage {
     if (!this.statsSaved) {
       this.statsSaved = true;
       const ctx = this.getUIContext().getHostContext() as common.Context;
-      StatsStore.recordResult(ctx, win, this.engine.attemptsUsed);
+      StatsStore.recordResult(ctx, this.engine.digits, win, this.engine.attemptsUsed).catch(() => {
+        this.getUIContext().getPromptAction().showToast({
+          message: '本次记录保存失败',
+          duration: 2000
+        });
+      });
     }
   }
 
@@ -684,7 +701,7 @@ export struct GamePage {
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
         Text(this.win
-          ? '用时 ' + this.timeText() + ' · 共 ' + this.engine.attemptsUsed.toString() + ' 次尝试'
+          ? '用时 ' + this.timeText() + ' · 消耗 ' + this.engine.attemptsUsed.toString() + ' 次机会'
           : '机会已用完，正确密码是：')
           .fontSize(14)
           .fontColor(Theme.TEXT_SUB)
