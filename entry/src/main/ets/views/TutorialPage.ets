@@ -9,6 +9,7 @@ import { GameEngine, GuessRecord } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
 import { FeedbackBadge } from '../common/GuessFeedback';
+import { HistoryColumns, HistoryRecord } from '../common/GuessHistory';
 import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
 import { BoardIcon } from '../common/BoardIcon';
 import { common } from '@kit.AbilityKit';
@@ -64,6 +65,7 @@ export struct TutorialPage {
   private preferenceRevision: number = 0;
   private preferenceWrites: Promise<void> = Promise.resolve();
   private contentScroller: Scroller = new Scroller();
+  private practiceHistoryScroller: Scroller = new Scroller();
   private screenReaderChanged: (enabled: boolean) => void = (enabled: boolean): void => {
     this.screenReader = enabled;
     if (enabled) {
@@ -688,27 +690,24 @@ export struct TutorialPage {
         }, (i: number) => i.toString())
       }
 
-      // 最近的猜测记录（最多显示 3 条）
       if (this.pRecords.length > 0) {
-        Column({ space: 6 }) {
-          ForEach(this.pRecords.slice(0, 3), (rec: GuessRecord) => {
-            Column({ space: 8 }) {
-              Row() {
-                Text('#' + rec.index.toString())
-                  .fontSize(11)
-                  .fontColor(Theme.TEXT_FAINT)
-                  .width(24)
-                this.FeedbackTiles(rec.guess, 58)
+        Column() {
+          Text('推理记录 · ' + this.pRecords.length.toString() + ' 条 · 上滑查看更早记录')
+            .fontSize(12)
+            .fontColor(Theme.TEXT_SUB)
+            .margin({ bottom: 4 })
+          HistoryColumns()
+          List({ scroller: this.practiceHistoryScroller }) {
+            ForEach(this.pRecords, (rec: GuessRecord) => {
+              ListItem() {
+                HistoryRecord({ record: rec, latest: rec.index === this.pRecords[0].index })
               }
-              .width('100%')
-              this.FeedbackRow(rec.a, rec.b, 186, 24)
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Start)
-            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
-            .backgroundColor(Theme.CARD)
-            .borderRadius(10)
-          }, (rec: GuessRecord) => rec.index.toString())
+            }, (rec: GuessRecord) => rec.index.toString())
+          }
+          .width('100%')
+          .height(192)
+          .scrollBar(BarState.Auto)
+          .nestedScroll({ scrollForward: NestedScrollMode.SELF_FIRST, scrollBackward: NestedScrollMode.SELF_FIRST })
         }
         .width('100%')
       }

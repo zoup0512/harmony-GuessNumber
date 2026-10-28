@@ -22,7 +22,7 @@ function contrast(foreground, background) {
 }
 
 test('board pages only reference defined semantic colors and contain no emoji decoration', () => {
-  for (const file of ['pages/Index.ets', 'views/GamePage.ets', 'views/TutorialPage.ets', 'common/BoardIcon.ets']) {
+  for (const file of ['pages/Index.ets', 'views/GamePage.ets', 'views/TutorialPage.ets', 'common/BoardIcon.ets', 'common/GuessHistory.ets']) {
     const source = read(file);
     for (const [, name] of source.matchAll(/Theme\.(\w+)/g)) {
       assert.match(themeSource, new RegExp(`static readonly ${name}:`), `${file}: missing ${name}`);
@@ -56,10 +56,14 @@ test('AI and hint controls reflect the final-attempt restriction', () => {
 
 test('five-digit tiles fit the supported compact layout budget', () => {
   const source = read('views/GamePage.ets');
-  assert.match(source, /this\.digits === 5 \? 48 : 54/);
+  assert.match(source, /this\.digits === 5 \? 40 : 44/);
   assert.match(source, /this\.digits === 5 \? 38 : 44/);
   assert.match(source, /this\.digits === 5 \? 34 : 40/);
-  assert.ok(5 * 48 + 4 * 8 <= 320 - 36);
+  assert.ok(5 * 40 + 4 * 6 <= 320 - 36);
   assert.ok(5 * 38 + 4 * 6 <= 320 * 0.84 - 48);
   assert.ok(5 * 34 + 4 * 6 <= 320 - 44 - 28);
+  const history = read('common/GuessHistory.ets');
+  assert.match(history, /this\.availableWidth < 148 \+ this\.record\.guess\.length \* 28 \* fontScale/);
+  assert.match(history, /if \(this\.stacked\(\)\)/);
+  assert.ok(28 + 6 + 5 * 24 + 4 * 4 <= 320 - 36 - 16);
 });

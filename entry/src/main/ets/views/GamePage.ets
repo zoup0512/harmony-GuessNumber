@@ -1,17 +1,35 @@
 /**
  * GamePage.ets — 对局页面
  * 顶部：返回 / 计时 / 剩余机会
- * 中部：当前输入瓷砖 + 猜测历史（最新在上）
- * 底部：定制数字键盘（自动禁用已用数字，杜绝非法输入）+ 提示
+ * 中部：紧凑猜测历史（最新在上）/ 全屏回顾
+ * 底部：当前输入 + 定制数字键盘 + 提示
  * 结束：结果浮层（揭示答案 / 再来一局 / 返回主页）
  */
 import { GameEngine, GuessRecord, DIFFICULTIES, Difficulty, AiAdvice } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
 import { Theme } from '../common/Theme';
-import { FeedbackBadge, FeedbackIcon } from '../common/GuessFeedback';
+import { FeedbackIcon } from '../common/GuessFeedback';
+import { HistoryColumns, HistoryRecord } from '../common/GuessHistory';
+import { FrameCallback, window } from '@kit.ArkUI';
 import { DeleteKeyIcon } from '../common/DeleteKeyIcon';
 import { BoardIcon } from '../common/BoardIcon';
 import { common } from '@kit.AbilityKit';
+
+class HistoryLayoutCallback extends FrameCallback {
+  private restore: () => void;
+
+  constructor(restore: () => void) {
+    super();
+    this.restore = restore;
+  }
+
+  onFrame(): void {
+  }
+
+  onIdle(): void {
+    this.restore();
+  }
+}
 
 const KEY_DELETE: string = 'DEL';
 const KEY_SUBMIT: string = 'OK';
@@ -35,6 +53,21 @@ export struct GamePage {
   @State showAi: boolean = false;
   @State aiUsesLeft: number = AI_MAX_USES;
   @State ai: AiAdvice = new AiAdvice();
+  @State reviewing: boolean = false;
+  @State historyAtTop: boolean = true;
+  @State wideLayout: boolean = false;
+  @State safeTop: number = 52;
+  @State safeBottom: number = 24;
+  @StorageLink('appForeground') @Watch('onForegroundChanged') appForeground: boolean = true;
+  private historyScroller: Scroller = new Scroller();
+  private historyRowHeight: number = 48;
+  private inputHistoryOffset: number = 0;
+  private pendingHistoryOffset: number = -1;
+  private active: boolean = false;
+  private pageVisible: boolean = false;
+  private gameWindow: window.Window | undefined = undefined;
+  private avoidAreaChanged: (options: window.AvoidAreaOptions) => void =
+    (options: window.AvoidAreaOptions): void => this.updateSafeArea();
   private timerId: number = -1;
   private autoSubmitId: number = -1;
   private keyRows: string[][] = [
@@ -43,8 +76,77 @@ export struct GamePage {
     ['9', '0', KEY_DELETE, KEY_SUBMIT]
   ];
 
+  aboutToAppear(): void {
+    this.active = true;
+    const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    window.getLastWindow(ctx).then((win: window.Window): void => {
+      if (!this.active) {
+        return;
+      }
+      this.gameWindow = win;
+      this.updateSafeArea();
+      win.on('avoidAreaChange', this.avoidAreaChanged);
+    }).catch((): void => {});
+  }
+
   aboutToDisappear(): void {
+    this.active = false;
+    this.pageVisible = false;
     this.stopTimer();
+    this.gameWindow?.off('avoidAreaChange', this.avoidAreaChanged);
+    this.gameWindow = undefined;
+  }
+
+  updateSafeArea(): void {
+    if (!this.gameWindow) {
+      return;
+    }
+    try {
+      const system = this.gameWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const navigation = this.gameWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+      this.safeTop = this.getUIContext().px2vp(system.topRect.height) + 8;
+      this.safeBottom = this.getUIContext().px2vp(Math.max(system.bottomRect.height,
+        navigation.bottomRect.height)) + 12;
+    } catch (error) {
+      this.safeTop = 52;
+      this.safeBottom = 24;
+    }
+  }
+
+  onForegroundChanged(): void {
+    if (!this.appForeground) {
+      this.clearAutoSubmit();
+    }
+  }
+
+  openHistory(): void {
+    this.clearAutoSubmit();
+    this.inputHistoryOffset = (this.historyScroller.currentOffset()?.yOffset ?? 0);
+    this.reviewing = true;
+  }
+
+  closeHistory(): void {
+    this.reviewing = false;
+    this.restoreHistoryOffset(this.inputHistoryOffset);
+  }
+
+  restoreHistoryOffset(offset: number): void {
+    this.pendingHistoryOffset = Math.max(0, offset);
+    this.getUIContext().postFrameCallback(new HistoryLayoutCallback((): void => {
+      if (!this.active || this.pendingHistoryOffset < 0) {
+        return;
+      }
+      const target = this.pendingHistoryOffset;
+      this.pendingHistoryOffset = -1;
+      this.historyScroller.scrollTo({ xOffset: 0, yOffset: target });
+      this.historyAtTop = target <= 1;
+    }));
+  }
+
+  returnToLatest(): void {
+    this.pendingHistoryOffset = -1;
+    this.historyScroller.scrollEdge(Edge.Top);
+    this.historyAtTop = true;
   }
 
   startGame(digits: number): void {
@@ -59,6 +161,10 @@ export struct GamePage {
     const attempts = difficulty.attempts;
     this.maxAttempts = attempts;
     this.engine.start(this.digits, attempts);
+    this.reviewing = false;
+    this.historyAtTop = true;
+    this.inputHistoryOffset = 0;
+    this.pendingHistoryOffset = -1;
     this.records = [];
     this.current = '';
     this.attemptsLeft = attempts;
@@ -96,10 +202,11 @@ export struct GamePage {
   }
 
   onKey(key: string): void {
-    if (this.finished) {
+    if (this.finished || this.reviewing) {
       return;
     }
     if (key === KEY_DELETE) {
+      this.clearAutoSubmit();
       if (this.current.length > 0) {
         this.current = this.current.substring(0, this.current.length - 1);
       }
@@ -124,7 +231,8 @@ export struct GamePage {
     this.clearAutoSubmit();
     this.autoSubmitId = setTimeout(() => {
       this.autoSubmitId = -1;
-      if (!this.finished && this.current.length === this.digits) {
+      if (!this.finished && !this.reviewing && this.pageVisible && this.appForeground &&
+        this.current.length === this.digits) {
         this.submit();
       }
     }, 280);
@@ -139,15 +247,18 @@ export struct GamePage {
 
   submit(): void {
     this.clearAutoSubmit();
-    if (this.current.length !== this.digits || this.finished) {
+    if (this.current.length !== this.digits || this.finished || this.reviewing) {
       return;
     }
+    const previousOffset = (this.historyScroller.currentOffset()?.yOffset ?? 0);
     const rec = this.engine.judge(this.current);
     const next: GuessRecord[] = [rec];
     for (let i = 0; i < this.records.length; i++) {
       next.push(this.records[i]);
     }
     this.records = next;
+    // ForEach 前插不会保留可见内容，补偿一行高度，避免打断历史回看。
+    this.restoreHistoryOffset(previousOffset > 1 ? previousOffset + this.historyRowHeight : 0);
     this.current = '';
     this.attemptsLeft = this.engine.attemptsLeft();
     if (rec.a === this.digits) {
@@ -273,10 +384,6 @@ export struct GamePage {
     }
   }
 
-  historyTileSize(guess: string): number {
-    return guess.length === 3 ? 44 : (guess.length === 4 ? 40 : 34);
-  }
-
   @Builder
   Header() {
     Row({ space: 10 }) {
@@ -301,8 +408,12 @@ export struct GamePage {
       .borderRadius(Theme.R_KEY)
       .accessibilityText('返回')
       .onClick(() => {
-        this.stopTimer();
-        this.pathStack.pop();
+        if (this.reviewing) {
+          this.closeHistory();
+        } else {
+          this.stopTimer();
+          this.pathStack.pop();
+        }
       })
       Text(this.digits.toString() + ' 位数字')
         .fontSize(16)
@@ -337,7 +448,7 @@ export struct GamePage {
       .accessibilityLevel('no')
     }
     .width('100%')
-    .margin({ top: 12 })
+    .margin({ top: 4 })
   }
 
   pipArray(): boolean[] {
@@ -351,18 +462,19 @@ export struct GamePage {
 
   @Builder
   CurrentInput() {
-    Column({ space: 10 }) {
-      Text('输入不重复的数字 · 输满自动提交')
+    Column({ space: 6 }) {
+      Text(this.current.length === this.digits
+        ? '输入已保留 · 点提交继续' : '输入不重复的数字 · 输满自动提交')
         .fontSize(12)
         .fontColor(Theme.TEXT_SUB)
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         ForEach(this.slotArray(), (ch: string, idx: number) => {
           Text(ch)
-            .fontSize(30)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(24)
+            .fontWeight(FontWeight.Medium)
             .fontColor(Theme.PRIMARY)
-            .width(this.digits === 5 ? 48 : 54)
-            .height(60)
+            .width(this.digits === 5 ? 40 : 44)
+            .constraintSize({ minHeight: 46 })
             .textAlign(TextAlign.Center)
             .backgroundColor(ch === '' ? Theme.CARD : Theme.PRIMARY_BG)
             .borderRadius(Theme.R_TILE)
@@ -375,10 +487,10 @@ export struct GamePage {
         Text('提示：' + this.hintText)
           .fontSize(13)
           .fontColor(Theme.PRIMARY)
-          .opacity(0.9)
       }
     }
-    .margin({ top: 18 })
+    .width('100%')
+    .padding({ top: 8 })
   }
 
   slotArray(): string[] {
@@ -387,6 +499,77 @@ export struct GamePage {
       arr.push(i < this.current.length ? this.current.charAt(i) : '');
     }
     return arr;
+  }
+
+  @Builder
+  HistoryHeading() {
+    Row({ space: 6 }) {
+      Text('推理记录 · ' + this.records.length.toString() + ' 条')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(Theme.TEXT)
+        .layoutWeight(1)
+      if (this.records.length > 0) {
+        Button(this.reviewing ? (this.finished ? '返回结果' : '继续输入') : '全屏回顾',
+          { type: ButtonType.Normal })
+          .fontSize(13)
+          .fontColor(Theme.PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .constraintSize({ minHeight: 44 })
+          .padding({ left: 8, right: 8 })
+          .onClick(() => {
+            if (this.reviewing) {
+              this.closeHistory();
+            } else {
+              this.openHistory();
+            }
+          })
+      }
+    }
+    .width('100%')
+    .constraintSize({ minHeight: 44 })
+  }
+
+  @Builder
+  HistoryFooter() {
+    Row() {
+      Text(this.records.length > 0 ? '最新在上 · 上滑查看更早记录' : '等待第一条线索')
+        .fontSize(12)
+        .fontColor(Theme.TEXT_SUB)
+        .layoutWeight(1)
+      if (!this.historyAtTop) {
+        Button('回到最新', { type: ButtonType.Normal })
+          .fontSize(12)
+          .fontColor(Theme.PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .constraintSize({ minHeight: 44 })
+          .padding({ left: 8, right: 8 })
+          .onClick(() => this.returnToLatest())
+      }
+    }
+    .width('100%')
+    .constraintSize({ minHeight: 28 })
+  }
+
+  @Builder
+  ReviewControls() {
+    Column({ space: 8 }) {
+      if (!this.finished) {
+        Text('未提交的输入已保留：' + this.slotArray().map((digit: string) => digit === '' ? '＿' : digit).join(' '))
+          .fontSize(13)
+          .fontColor(Theme.TEXT_SUB)
+      }
+      Button(this.finished ? '返回结果' : '继续输入', { type: ButtonType.Normal })
+        .fontSize(16)
+        .fontColor(Theme.ON_PRIMARY)
+        .backgroundColor(Theme.PRIMARY)
+        .borderRadius(Theme.R_KEY)
+        .constraintSize({ minHeight: 48 })
+        .width('100%')
+        .onClick(() => this.closeHistory())
+    }
+    .width('100%')
+    .padding({ top: 8 })
   }
 
   @Builder
@@ -421,38 +604,29 @@ export struct GamePage {
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 8 }) {
+      HistoryColumns()
+      List({ scroller: this.historyScroller }) {
         ForEach(this.records, (rec: GuessRecord) => {
           ListItem() {
-            Column({ space: 8 }) {
-              Row() {
-                Text('#' + rec.index.toString())
-                  .fontSize(12)
-                  .fontColor(Theme.TEXT_FAINT)
-                  .width(30)
-                this.GuessTiles(rec.guess, this.historyTileSize(rec.guess), 18)
-              }
-              .width('100%')
-              Row({ space: 10 }) {
-                FeedbackBadge({ count: rec.a, exact: true })
-                FeedbackBadge({ count: rec.b, exact: false })
-              }
-              .margin({ left: 30 })
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Start)
-            .padding(12)
-            .backgroundColor(Theme.CARD)
-            .borderRadius(Theme.R_CARD - 4)
-            .borderWidth(1)
-            .borderColor(Theme.STROKE)
+            HistoryRecord({ record: rec, latest: rec.index === this.records[0].index })
           }
+          .onAreaChange((oldArea: Area, area: Area) => {
+            if (Number(area.height) > 0) {
+              this.historyRowHeight = Number(area.height);
+            }
+          })
         }, (rec: GuessRecord) => rec.index.toString())
       }
       .layoutWeight(1)
       .width('100%')
-      .margin({ top: 14 })
-      .scrollBar(BarState.Off)
+      .borderRadius(10)
+      .clip(true)
+      .scrollBar(BarState.Auto)
+      .onDidScroll(() => {
+        if (this.pendingHistoryOffset < 0) {
+          this.historyAtTop = (this.historyScroller.currentOffset()?.yOffset ?? 0) <= 1;
+        }
+      })
     }
   }
 
@@ -649,7 +823,7 @@ export struct GamePage {
       }, (row: string[], rIdx: number) => rIdx.toString())
     }
     .width('100%')
-    .margin({ top: 12 })
+    .margin({ top: 8 })
   }
 
   @Builder
@@ -694,54 +868,70 @@ export struct GamePage {
   @Builder
   ResultOverlay() {
     Column() {
-      Column({ space: 14 }) {
-        BoardIcon({ kind: this.win ? 'check' : 'flag', iconSize: 44, color: this.win ? Theme.GREEN : Theme.TEXT_SUB })
-        Text(this.win ? '这组数字，想通了！' : '再差一点，下局继续')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Theme.TEXT)
-        Text(this.win
-          ? '用时 ' + this.timeText() + ' · 消耗 ' + this.engine.attemptsUsed.toString() + ' 次机会'
-          : '机会已用完，正确密码是：')
-          .fontSize(14)
-          .fontColor(Theme.TEXT_SUB)
-        this.GuessTiles(this.engine.secret, this.digits === 5 ? 38 : 44, 24)
-        Row({ space: 12 }) {
-          Text('返回主页')
-            .fontSize(16)
-            .fontColor(Theme.TEXT)
-            .textAlign(TextAlign.Center)
-            .height(48)
-            .layoutWeight(1)
-            .backgroundColor(Theme.CARD_STRONG)
-            .borderRadius(999)
-            .onClick(() => {
-              this.stopTimer();
-              this.pathStack.pop();
-            })
-          Text('再来一局')
-            .fontSize(16)
+      Scroll() {
+        Column({ space: 14 }) {
+          BoardIcon({ kind: this.win ? 'check' : 'flag', iconSize: 44, color: this.win ? Theme.GREEN : Theme.TEXT_SUB })
+          Text(this.win ? '这组数字，想通了！' : '再差一点，下局继续')
+            .fontSize(24)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.ON_PRIMARY)
-            .textAlign(TextAlign.Center)
-            .height(48)
-            .layoutWeight(1)
-            .backgroundColor(Theme.PRIMARY)
-            .borderRadius(999)
-            .onClick(() => this.startGame(this.digits))
+            .fontColor(Theme.TEXT)
+          Text(this.win
+            ? '用时 ' + this.timeText() + ' · 消耗 ' + this.engine.attemptsUsed.toString() + ' 次机会'
+            : '机会已用完，正确密码是：')
+            .fontSize(14)
+            .fontColor(Theme.TEXT_SUB)
+          this.GuessTiles(this.engine.secret, this.digits === 5 ? 38 : 44, 24)
+          Button('查看本局记录', { type: ButtonType.Normal })
+            .fontSize(14)
+            .fontColor(Theme.PRIMARY)
+            .backgroundColor(Theme.PRIMARY_BG)
+            .constraintSize({ minHeight: 44 })
+            .width('100%')
+            .borderRadius(Theme.R_KEY)
+            .enabled(this.records.length > 0)
+            .onClick(() => this.openHistory())
+          Row({ space: 12 }) {
+            Text('返回主页')
+              .fontSize(16)
+              .fontColor(Theme.TEXT)
+              .textAlign(TextAlign.Center)
+              .height(48)
+              .layoutWeight(1)
+              .backgroundColor(Theme.CARD_STRONG)
+              .borderRadius(999)
+              .onClick(() => {
+                this.stopTimer();
+                this.pathStack.pop();
+              })
+            Text('再来一局')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Theme.ON_PRIMARY)
+              .textAlign(TextAlign.Center)
+              .height(48)
+              .layoutWeight(1)
+              .backgroundColor(Theme.PRIMARY)
+              .borderRadius(999)
+              .onClick(() => this.startGame(this.digits))
+          }
+          .width('100%')
+          .margin({ top: 8 })
         }
         .width('100%')
-        .margin({ top: 8 })
+        .padding(24)
+        .backgroundColor(Theme.SHEET)
       }
       .width('84%')
-      .padding(24)
-      .backgroundColor(Theme.SHEET)
+      .constraintSize({ maxWidth: 480, maxHeight: '100%' })
+      .scrollBar(BarState.Auto)
       .borderRadius(24)
+      .clip(true)
       .borderWidth(1)
       .borderColor(Theme.STROKE)
     }
     .width('100%')
     .height('100%')
+    .padding({ top: this.safeTop, bottom: this.safeBottom })
     .justifyContent(FlexAlign.Center)
     .backgroundColor(Theme.MASK)
     .transition(TransitionEffect.OPACITY.animation({ duration: 260 }))
@@ -753,27 +943,43 @@ export struct GamePage {
         Column() {
           this.Header()
           this.AttemptPips()
-          this.CurrentInput()
-          Row() {
-            Text('推理记录')
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Theme.TEXT)
-            Blank()
-            Text(this.records.length > 0 ? '最新在上' : '等待第一条线索')
-              .fontSize(12)
-              .fontColor(Theme.TEXT_FAINT)
+          Flex({ direction: this.wideLayout && !this.reviewing ? FlexDirection.Row : FlexDirection.Column }) {
+            Column() {
+              this.HistoryHeading()
+              this.History()
+              this.HistoryFooter()
+            }
+            .layoutWeight(1)
+            .width(this.wideLayout && !this.reviewing ? '60%' : '100%')
+            .height(this.wideLayout && !this.reviewing ? '100%' : undefined)
+            if (this.reviewing) {
+              this.ReviewControls()
+            } else {
+              Scroll() {
+                Column() {
+                  this.CurrentInput()
+                  this.Keypad()
+                }
+                .width('100%')
+              }
+              .width(this.wideLayout ? '38%' : '100%')
+              .constraintSize({ maxHeight: this.wideLayout ? '100%' : '58%' })
+              .scrollBar(BarState.Auto)
+              .margin({ left: this.wideLayout ? 16 : 0 })
+            }
           }
+          .layoutWeight(1)
           .width('100%')
-          .margin({ top: 22 })
-          this.History()
-          this.Keypad()
+          .margin({ top: 4 })
+          .onAreaChange((oldArea: Area, area: Area) => {
+            this.wideLayout = Number(area.width) >= 600;
+          })
         }
         .width('100%')
         .height('100%')
-        .padding({ left: 18, right: 18, top: 52, bottom: 24 })
+        .padding({ left: 18, right: 18, top: this.safeTop, bottom: this.safeBottom })
 
-        if (this.finished) {
+        if (this.finished && !this.reviewing) {
           this.ResultOverlay()
         }
       }
@@ -786,7 +992,18 @@ export struct GamePage {
       const digits = ctx.pathInfo.param as number;
       this.startGame(digits > 0 ? digits : 4);
     })
+    .onShown(() => {
+      this.pageVisible = true;
+    })
+    .onHidden(() => {
+      this.pageVisible = false;
+      this.clearAutoSubmit();
+    })
     .onBackPressed(() => {
+      if (this.reviewing) {
+        this.closeHistory();
+        return true;
+      }
       this.stopTimer();
       this.pathStack.pop();
       return true;
