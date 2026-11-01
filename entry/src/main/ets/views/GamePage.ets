@@ -7,6 +7,8 @@
  */
 import { GameEngine, GuessRecord, DIFFICULTIES, Difficulty, AiAdvice } from '../model/GameEngine';
 import { StatsStore } from '../model/StatsStore';
+import { BrainProfile } from '../model/BrainProfile';
+import { BrainStore } from '../model/BrainStore';
 import { Theme } from '../common/Theme';
 import { FeedbackIcon } from '../common/GuessFeedback';
 import { HistoryColumns, HistoryRecord } from '../common/GuessHistory';
@@ -348,6 +350,14 @@ export struct GamePage {
           duration: 2000
         });
       });
+      // 脑力雷达：records 为最新在前，分析需要从旧到新
+      const chrono: GuessRecord[] = [];
+      for (let i = this.records.length - 1; i >= 0; i--) {
+        chrono.push(this.records[i]);
+      }
+      const session = BrainProfile.analyzeSession(this.engine.digits, chrono, win, this.engine.attemptsUsed,
+        this.maxAttempts, this.seconds, this.hintUsed, AI_MAX_USES - this.aiUsesLeft);
+      BrainStore.append(ctx, session).catch(() => {});
     }
   }
 
