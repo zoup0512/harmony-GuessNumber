@@ -18,10 +18,6 @@ export struct BoardIcon {
         return 'M5 12 L10 17 L19 7';
       case 'keyboard':
         return 'M3 6 L21 6 L21 18 L3 18 Z M7 10 L7.1 10 M12 10 L12.1 10 M17 10 L17.1 10 M7 14 L17 14';
-      case 'radar':
-        return 'M12 2.5 L20.2 7.25 L20.2 16.75 L12 21.5 L3.8 16.75 L3.8 7.25 Z M12 7 L16.5 10 L15 15.5 L9 15 L8 9.5 Z';
-      case 'chevron':
-        return 'M9 5.5 L15.5 12 L9 18.5';
       case 'flag':
         return 'M6 21 L6 3 L18 3 L16 7 L18 11 L6 11';
       default:

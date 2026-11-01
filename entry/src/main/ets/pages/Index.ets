@@ -5,9 +5,6 @@ import { DIFFICULTIES, Difficulty } from '../model/GameEngine';
 import { Theme } from '../common/Theme';
 import { FeedbackIcon, GuessFeedback } from '../common/GuessFeedback';
 import { BoardIcon } from '../common/BoardIcon';
-import { BrainRadarPage } from '../views/BrainRadarPage';
-import { BrainProfile, BrainReport, BrainSession, DIMENSIONS, DimensionInfo } from '../model/BrainProfile';
-import { BrainStore } from '../model/BrainStore';
 import { common } from '@kit.AbilityKit';
 
 @Entry
@@ -20,7 +17,6 @@ struct Index {
   @State statsError: boolean = false;
   @State selectedDigits: number = 4;
   @State showRules: boolean = false;
-  @State brain: BrainReport = new BrainReport();
   private statsRequest: number = 0;
 
   aboutToAppear(): void {
@@ -48,15 +44,6 @@ struct Index {
     StatsStore.loadLegacy(ctx).then((s: Stats) => {
       this.legacyStats = s;
     }).catch(() => {});
-    BrainStore.load(ctx).then((list: BrainSession[]) => {
-      this.brain = BrainProfile.buildReport(list);
-    }).catch(() => {});
-  }
-
-  openRadar(): void {
-    this.pathStack.pushPathByName('radar', '', () => {
-      this.loadStats();
-    });
   }
 
   statsValue(value: number): string {
@@ -98,72 +85,7 @@ struct Index {
       GamePage()
     } else if (name === 'tutorial') {
       TutorialPage()
-    } else if (name === 'radar') {
-      BrainRadarPage()
     }
-  }
-
-  @Builder
-  RadarEntry() {
-    Row({ space: 12 }) {
-      Stack() {
-        Column()
-          .width(46)
-          .height(46)
-          .backgroundColor(Theme.PRIMARY_BG)
-          .borderRadius(Theme.R_TILE + 4)
-        BoardIcon({ kind: 'radar', iconSize: 26, color: Theme.PRIMARY })
-      }
-      Column({ space: 5 }) {
-        Row({ space: 6 }) {
-          Text('脑力雷达')
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(Theme.TEXT)
-          if (this.brain.count > 0) {
-            Text(BrainProfile.levelTitle(this.brain.overall))
-              .fontSize(11)
-              .fontColor(Theme.PRIMARY)
-              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .backgroundColor(Theme.PRIMARY_BG)
-              .borderRadius(999)
-          }
-        }
-        Row({ space: 4 }) {
-          ForEach(DIMENSIONS, (d: DimensionInfo) => {
-            Column().width(6).height(6).backgroundColor(d.color).borderRadius(3)
-          }, (d: DimensionInfo) => d.name)
-          Text(this.brain.count > 0 ? '六维能力 · 看看你哪里最强' : '六维能力 · 完成一局即可点亮')
-            .fontSize(12)
-            .fontColor(Theme.TEXT_SUB)
-            .margin({ left: 4 })
-        }
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-      if (this.brain.count > 0) {
-        Column() {
-          Text(this.brain.overall.toString())
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.PRIMARY)
-          Text('脑力指数')
-            .fontSize(10)
-            .fontColor(Theme.TEXT_SUB)
-        }
-      }
-      BoardIcon({ kind: 'chevron', iconSize: 18, color: Theme.TEXT_FAINT })
-    }
-    .width('100%')
-    .padding(14)
-    .backgroundColor(Theme.CARD)
-    .borderRadius(Theme.R_CARD)
-    .borderWidth(1)
-    .borderColor(Theme.STROKE)
-    .margin({ bottom: 24 })
-    .accessibilityText('脑力雷达，六维能力' +
-      (this.brain.count > 0 ? '，脑力指数 ' + this.brain.overall.toString() : ''))
-    .onClick(() => this.openRadar())
   }
 
   @Builder
@@ -371,9 +293,7 @@ struct Index {
                   .fontColor(Theme.TEXT_SUB)
               }
             }
-            .margin({ top: 18, bottom: 24 })
-
-            this.RadarEntry()
+            .margin({ top: 18, bottom: 28 })
 
             Text('选择难度')
               .fontSize(15)
